@@ -1,0 +1,268 @@
+QFrame {
+	border-radius: 10px;
+}
+
+QWidget {
+	
+    font-size: 10pt;
+}
+
+
+#f_contracts, #f_deliveries {
+	border: 1px solid grey;
+	background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 rgb(150, 150, 150), stop: 0.5 rgb(195, 195, 195), stop: 1 rgb(150, 150, 150));
+}
+
+#w_ctr, #w_dlv {
+	background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 rgb(150, 150, 150), stop: 0.5 rgb(195, 195, 195), stop: 1 rgb(150, 150, 150));
+}
+#Accueil {
+	background-color: rgb(215, 215, 215); 	
+}
+
+QGroupBox {
+	border: 1px solid grey;
+    border-radius: 5px;
+    margin-top: 5ex; /* leave space at the top for the title */
+	background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 rgb(215, 215, 215), stop: 0.5 rgb(200, 200, 200), stop: 1 rgb(215, 215, 215));
+}
+
+
+QGroupBox::title {
+	/*font-size: 18px;*/
+	font-weight: bold;
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 3px 3px;
+	border: 1px solid grey;
+    border-radius: 5px;
+	background-color: rgb(215, 215, 215);
+}
+
+#label_4 {
+	border: 1px solid black;
+    font-size: 15pt;
+
+}
+
+QFrame#line_2, QFrame#line_3{
+	background-color: grey;
+}
+
+QSplitter::handle:horizontal {	
+	border: 3px dashed qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 rgb(150, 150, 150), stop: 0.5 rgb(195, 195, 195), stop: 1 rgb(150, 150, 150));
+	margin: 420px 1px;	
+}
+
+QTableWidget QTableCornerButton::section {
+	background-color: rgba(0,0,0,0); 
+}
+
+QPushButton::enabled {
+	border-style: outset;
+    border-width: 1px;
+
+	border-color: #333333;
+	border-radius: 10px;
+	background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgb(141, 141, 141), stop:0.5 rgb(135, 135, 135), stop:1 rgb(79, 79, 79));
+	color: #ffffff;
+
+
+    min-width: 10em;
+    padding: 6px;
+}
+
+QPushButton::!enabled {
+	border-style: outset;
+    border-width: 1px;
+
+	border-color: #333333;
+	border-radius: 10px;
+    min-width: 10em;
+    padding: 6px;
+
+    background:  rgb(150, 150, 150);
+	color: rgb(100, 100, 100);
+}
+
+QPushButton::hover{ 
+	background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgb(151, 151, 151), stop:0.5 rgb(145, 145, 145), stop:1 rgb(89, 89, 89));
+}
+
+
+QPushButton::focus::pressed{ 
+	background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgb(89, 89, 89), stop:0.5 rgb(70, 70, 70), stop:1 rgb(151, 151, 151));
+}
+
+
+#b_rechercher::enabled {
+	border-style: outset;
+    border-width: 1px;
+
+	border-color: #333333;
+	border-radius: 10px;
+	background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgb(141, 141, 141), stop:0.5 rgb(135, 135, 135), stop:1 rgb(79, 79, 79));
+	color: #ffffff;
+
+
+    min-width: 8em;
+    padding: 6px;
+}
+
+
+#b_rechercher::hover{ 
+	background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgb(151, 151, 151), stop:0.5 rgb(145, 145, 145), stop:1 rgb(89, 89, 89));
+}
+
+
+#b_rechercher::focus::pressed{ 
+	background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgb(89, 89, 89), stop:0.5 rgb(70, 70, 70), stop:1 rgb(151, 151, 151));
+}
+
+
+
+QTreeView {
+    alternate-background-color: rgb(236, 236, 236);
+}
+
+QTreeView {
+    show-decoration-selected: 1;
+    border: 1px solid grey;
+	border-radius: 0px;
+}
+
+
+QTreeView::item {
+    border: 1px solid #d9d9d9;
+    /*border-top-color: transparent;*/
+    /*border-bottom-color: transparent;*/
+}
+
+QTreeView::item:hover {
+    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 rgb(200, 200, 200), stop: 1 rgb(200, 200, 200));
+    border: 1px solid #bfcde4;
+}
+
+QTreeView::item:selected {
+    /* border: 1px solid #567dbc;*/
+    border: 1px solid #d9d9d9;
+    background-color: rgb(142, 255, 136);
+}
+
+QTreeView::item:selected:active{
+    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #9fea6e, stop: 1 #85c45c);
+    color: black;
+}
+
+QTreeView::item:selected:!active {
+    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #83ef67, stop: 1 #6dbf57);
+    color: black;
+}
+
+/*QTreeView::item:selected {
+*    border: 1px solid #d9d9d9;
+*    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #9fea6e, stop: 1 #85c45c);
+}*/
+
+/*QTreeView::item:selected:active{
+*    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #9fea6e, stop: 1 #85c45c);
+*    color: black;
+}*/
+
+/*QTreeView::item:selected:!active {
+*    border: 1px solid #d9d9d9;
+*    background-color: transparent;
+}*/
+
+
+QHeaderView::section {
+    /* background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 rgb(160, 160, 160), stop: 0.5 rgb(190, 190, 190)); */
+	background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgb(141, 141, 141), stop:0.5 rgb(125, 125, 125), stop:1 rgb(79, 79, 79));
+
+    color: white;
+    padding-left: 4px;
+    border: 1px solid qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgb(171, 171, 171), stop:0.5 rgb(155, 155, 155), stop:1 rgb(109, 109, 109));
+}
+
+#calendar_dlv {
+	font-size: 11;
+}
+
+
+QComboBox{
+	border: 1px solid #333333;
+	border-radius: 3px;
+	background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgb(141, 141, 141), stop:0.5 rgb(125, 125, 125), stop:1 rgb(79, 79, 79));
+	padding: 1px 23px 1px 3px;
+	min-width: 10em;
+	color: #ffffff;
+}
+
+QComboBox::hover{
+	border: 1px solid #333333;
+	border-radius: 3px;
+	background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgb(151, 151, 151), stop:0.5 rgb(135, 135, 135), stop:1 rgb(89, 89, 89));
+	padding: 1px 23px 1px 3px;
+	min-width: 10em;
+	color: #ffffff;
+}
+
+QComboBox:editable:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgb(151, 151, 151), stop:0.5 rgb(135, 135, 135), stop:1 rgb(89, 89, 89));
+}
+
+QComboBox#cb_sort_year, QComboBox#cb_year, QComboBox#cb_month {
+	border: 1px solid #333333;
+	border-radius: 3px;
+	background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgb(141, 141, 141), stop:0.5 rgb(125, 125, 125), stop:1 rgb(79, 79, 79));
+	min-width: 5em;
+	color: #ffffff;
+}
+
+
+QComboBox#cb_sort_year::hover, QComboBox#cb_year::hover, QComboBox#cb_month::hover{
+	border: 1px solid #333333;
+	border-radius: 3px;
+	background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgb(151, 151, 151), stop:0.5 rgb(135, 135, 135), stop:1 rgb(89, 89, 89));
+	padding: 1px 23px 1px 3px;
+	min-width: 10em;
+	color: #ffffff;
+}
+
+#cb_unite, #cb_monnaie{
+	border: 1px solid #333333;
+	border-radius: 3px;
+	background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgb(141, 141, 141), stop:0.5 rgb(125, 125, 125), stop:1 rgb(79, 79, 79));
+	min-width: 2em;
+	color: #ffffff;
+}
+
+QComboBox::drop-down {
+	subcontrol-origin: padding;
+	subcontrol-position: top right;
+	width: 80px;
+}
+
+QComboBox QAbstractItemView{
+	background-color: rgb(200, 200, 200);
+	color: rgb(0, 0, 0);
+	
+	selection-background-color: rgb(100, 100, 100);
+}
+
+QCompleter::drop-down {
+	background-color: rgb(200, 200, 200);
+}
+
+QMenu {
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 rgb(215, 215, 215), stop: 0.5 rgb(200, 200, 200), stop: 1 rgb(215, 215, 215));
+    border: 1px solid black;
+}
+
+QMenu::item {
+    background-color: transparent;
+}
+
+QMenu::item:selected { 
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgb(141, 141, 141), stop:0.5 rgb(125, 125, 125), stop:1 rgb(79, 79, 79));
+}
