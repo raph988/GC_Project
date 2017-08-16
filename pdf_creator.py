@@ -148,8 +148,7 @@ class PDFCreator(QtGui.QMainWindow, QtCore.QObject):
         
         self.hide()
         
-        data_path = getFromConfig('path', 'data_dir')
-        base_tpl_path = data_path+'Templates/'
+        base_tpl_path = getFromConfig('path', 'templates_contract')
         words_path = getFromConfig('path', 'words_contract')
         
         for i in range(0, self.ui.layout_langues.count()):
@@ -160,9 +159,15 @@ class PDFCreator(QtGui.QMainWindow, QtCore.QObject):
                     
         if tpl_path is None:
             filters = "MS Word Documents (*"+langue_data["code"]+".docx)"
-            selected_filter = "MS Word Documents (*"+langue_data["code"]+".docx)"
-            options = QtGui.QFileDialog.ExistingFiles
-            tpl_path = QtGui.QFileDialog.getOpenFileName(self, "Selectionnez un template", base_tpl_path, filters, selected_filter, options)[0]
+#            selected_filter = "MS Word Documents (*"+langue_data["code"]+".docx)"
+            options = QtGui.QFileDialog.DontResolveSymlinks
+            fileDialog = QtGui.QFileDialog (self, "Selectionnez un modèle de contrat")
+            fileDialog.setFilter(filters)
+            fileDialog.setOptions(options)
+            fileDialog.setDirectory(base_tpl_path)
+            tpl_path = fileDialog.getOpenFileName()[0]
+#            tpl_path = QtGui.QFileDialog.getOpenFileName(self, "Selectionnez un template", base_tpl_path, filters, selected_filter, options)[0]
+#            tpl_path = fileDialog.getOpenFileName(self, "Selectionnez un template", dir=base_tpl_path, filter = filters, selected_filter, options)[0]
             if tpl_path is None or tpl_path == "":
                 return
             
@@ -182,9 +187,9 @@ class PDFCreator(QtGui.QMainWindow, QtCore.QObject):
         #################################################
         ##             VILLE DE LVR/CHARG              ##
         #################################################
-        if self.ctr.ville is not None and len(self.ctr.ville)>0:
-            ville = self.ctr.ville
-        else:
+        
+        ville = self.ctr.getVilleCible()
+        if len(ville) < 1:
             ville = "<VILLE>"
         
         #################################################
@@ -192,7 +197,7 @@ class PDFCreator(QtGui.QMainWindow, QtCore.QObject):
         #################################################
         if is_fourniss is True:
             adr_fact = self.ctr.getFactFourniss()
-        elif is_fourniss:
+        else:
             adr_fact = self.ctr.getFactClient()
             
         if isinstance(adr_fact, list):
@@ -265,7 +270,7 @@ class PDFCreator(QtGui.QMainWindow, QtCore.QObject):
         #################################################
         
         str_prix = self.ctr.prix
-        matches = re.findall(r"[-+]?\d*\.*\d+", str_prix)
+        matches = re.findall(r"[-+]?\d*\.*\d+", str_prix.replace(',','.'))
         if len(matches) > 0:
             prix_num = matches[0]
             prix_words = num2words(float(prix_num), lang=langue_data['code'])
@@ -297,24 +302,27 @@ class PDFCreator(QtGui.QMainWindow, QtCore.QObject):
         #################################################
         ##                 LIVRAISON                   ##
         #################################################
-        dlv_dic = self.ctr.periode_livraison
-        periode_livraison = ""
+#        dlv_dic = self.ctr.periode_livraison
+        try:
+            periode_livraison = self.ctr.descr_livraison
+        except:
+            periode_livraison = ""
         
-        month_names = langue_data['months']
-        ordered_years = sorted(dlv_dic.keys())
-        for i in range(0, len(ordered_years), 1):
-            if len(periode_livraison) > 0 :
-                periode_livraison += '\n'
-            y = ordered_years[i]
-            for j in range(0, 12):
-                m = month_names[j]
-                total = int(float(dlv_dic[y][str(j+1).zfill(2)]["total"]))
-                if total == 0: continue
-                if len(periode_livraison) > 0 :
-                    periode_livraison += ', '+m
-                else:
-                    periode_livraison += m
-            periode_livraison += ' - '+str(y)
+#        month_names = langue_data['months']
+#        ordered_years = sorted(dlv_dic.keys())
+#        for i in range(0, len(ordered_years), 1):
+#            if len(periode_livraison) > 0 :
+#                periode_livraison += '\n'
+#            y = ordered_years[i]
+#            for j in range(0, 12):
+#                m = month_names[j]
+#                total = int(float(dlv_dic[y][str(j+1).zfill(2)]["total"]))
+#                if total == 0: continue
+#                if len(periode_livraison) > 0 :
+#                    periode_livraison += ', '+m
+#                else:
+#                    periode_livraison += m
+#            periode_livraison += ' - '+str(y)
                 
         if len(self.ctr.logement) > 0:
             index = self.oil_market.logements["fr"].index(self.ctr.logement)
@@ -323,11 +331,16 @@ class PDFCreator(QtGui.QMainWindow, QtCore.QObject):
             format_livraison = ""
         
         if self.ctr.is_franco is True:
+            if langue_data['code'] == "fr":
+                ville = "usine acheteur à ".decode('utf8')+ ville.decode('utf8')
             if langue_data['type_deliv'][1] == "":
                 type_deliv = langue_data['type_deliv'][0].lower()
             else:
                 type_deliv = langue_data['type_deliv'][1].lower()
         else:
+            if langue_data['code'] == "fr":
+                ville = "usine vendeur à ".decode('utf8')+ ville.decode('utf8')
+                
             if langue_data['type_deliv'][3] == "":
                 type_deliv = langue_data['type_deliv'][2].lower()
             else:
@@ -371,7 +384,16 @@ class PDFCreator(QtGui.QMainWindow, QtCore.QObject):
         }
         
         if filedir is None:
-            filedir = QtGui.QFileDialog.getExistingDirectory(self, "Où enregistrer ?", words_path, QtGui.QFileDialog.ShowDirsOnly | QtGui.QFileDialog.DontResolveSymlinks)
+#            filedir = QtCore.QDir.absoluteFilePath(words_path)
+            filedir = QtCore.QFileInfo(words_path).absoluteFilePath()
+#            selected_filter = "MS Word Documents (*"+langue_data["code"]+".docx)"
+#            fileDialog2 = QtGui.QFileDialog(self, "Où enregistrer ?")
+#            options2 = QtGui.QFileDialog.DontResolveSymlinks
+#            fileDialog2.setOptions(options2)
+#            fileDialog2.setDirectory(words_path)
+#            filedir = fileDialog2.getExistingDirectory()
+            
+#            filedir = QtGui.QFileDialog.getExistingDirectory(self, "Où enregistrer ?", words_path, QtGui.QFileDialog.ShowDirsOnly)# | QtGui.QFileDialog.DontResolveSymlinks)
         
         if filedir is None:
             return
@@ -379,23 +401,15 @@ class PDFCreator(QtGui.QMainWindow, QtCore.QObject):
         if not filedir.endswith('/'):
             filedir += '/'
         
-        try:
-            ctr = DocxTemplate(tpl_path)
-            ctr.render(context)
-            if is_fourniss is False:
-                ctr_doc = filedir + filename + "_client.docx"
-                ctr.save(ctr_doc)
-            else:
-                ctr_doc = filedir + filename + ".docx"
-                ctr.save(ctr_doc)
+        ctr = DocxTemplate(tpl_path)
+        ctr.render(context)
+        if is_fourniss is False:
+            ctr_doc = filedir + filename + "_client.docx"
+            ctr.save(ctr_doc)
+        else:
+            ctr_doc = filedir + filename + ".docx"
+            ctr.save(ctr_doc)
             
-        except Exception as e:
-            print e
-            msgBox = QtGui.QMessageBox()
-            msgBox.setText("Une erreur est arrivée lors de l'édition du contrat !")
-            msgBox.setStandardButtons(QtGui.QMessageBox.Ok)
-            return msgBox.exec_()
-        
         startfile(ctr_doc)
         
         if is_fourniss is False:
