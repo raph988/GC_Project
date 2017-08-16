@@ -30,13 +30,14 @@ class UsineLabel(QtGui.QLabel):
             # Adress on left
             text += '<td width="50%"><font size=5><b>'+self.usine.proprietaire.nom+'</b></font><br>'
             text += '<font size=4><i><b>Adresse : </b></i></font><br>'
-            for i in range(0, len(self.usine.adresse), 1):
-                text += '<font size=3>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'+self.usine.adresse[i]+'</font><br>'
+#            for i in range(0, len(self.usine.adresse), 1):
+#                text += '<font size=3>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'+self.usine.adresse[i]+'</font><br>'
+            text += '<font size=3>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'+self.usine.getAdr().encode('utf8')+'</font><br>'
             text += '</td>'
             # Pdts on right
             text += '<td width="50%"><br><br><font size=4><i><b>Produits suivis : </b></i></font><br>'
             for p in self.usine.produits:
-                text += '<font size=3>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'+p+'</font><br>'
+                text += '<font size=3>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'+p.encode('utf8')+'</font><br>'
             text += '</td>'
             text += '</table>'
             
@@ -89,9 +90,13 @@ class ContractIniter(QtGui.QMainWindow, QtCore.QObject):
         self.ui.setupUi(self)
         
         
-        self.contractEditor = ContractEditor(self)
+        scrollArea = QtGui.QScrollArea()
+        scrollArea.setWidgetResizable(True)
+        self.contractEditor = ContractEditor(scrollArea)
         self.contractEditor.initEditor()
+        
         self.ui.tab_main.addTab(self.contractEditor, "Nouveau contrat")
+        self.ui.tab_main.widget(1).setSizePolicy(QtGui.QSizePolicy.MinimumExpanding, QtGui.QSizePolicy.Preferred)
         self.setWindowTitle("Créateur de contrat")
         
         self.oil_market = Market()
@@ -111,7 +116,7 @@ class ContractIniter(QtGui.QMainWindow, QtCore.QObject):
         self.connectionsManager(disconnect=False)
         
         self.ui.rb_fournisseur.setChecked(True)
-        self.resetPage()
+#        self.resetPage()
         
         
     def connectionsManager(self, disconnect = False):
@@ -223,9 +228,9 @@ class ContractIniter(QtGui.QMainWindow, QtCore.QObject):
             new_contract = self.cDB.newContract()
                 
         if self.usine_selected[1] == 0: #usine vendeur
-            new_contract.usine_depart = self.usine_selected[0]
+            new_contract.usine_vendeur = self.usine_selected[0]
         else:
-            new_contract.usine_destination = self.usine_selected[0]
+            new_contract.usine_acheteur = self.usine_selected[0]
         new_contract.marchandise = self.ui.produit.text()
             
         self.contractEditor.initEditor(new_contract)
@@ -287,9 +292,10 @@ class ContractIniter(QtGui.QMainWindow, QtCore.QObject):
     
     def closeEvent(self, event):
         
+#        self.contractEditor.blockSignals(True)
         current_contract = self.contractEditor.new_contract
         
-        print "initer asked to close... ctr is ", current_contract
+#        print "initer asked to close... ctr is ", current_contract
 #        if current_contract is not None:
 #            ctr = self.cDB.getContractsByNum(current_contract.n_contrat, True)
 #            if ctr is None:
@@ -307,10 +313,13 @@ class ContractIniter(QtGui.QMainWindow, QtCore.QObject):
                 event.ignore()
 #        else:
 #            self.s_close_widget.emit()
+#        self.contractEditor.blockSignals(False)
             
         print "tout doit se fermer"
 #        self.contractEditor.close()
 
+#    def showEvent(self):
+#        print self.size()
             
     def closeWindow(self):
 #        self.contractEditor.close()

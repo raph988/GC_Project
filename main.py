@@ -12,6 +12,9 @@ import logging
 
 from utils import getFromConfig
 
+version = 3.0
+
+
 """
 TO TRY : https://pypi.python.org/pypi/pickleshare
 """
@@ -45,22 +48,14 @@ class StreamToLogger(object):
 #        self.logger.error(self._stderr)
 
 
+# IMPORT MODULES
+from classes import Market
+from ui_manager import Ui_manager
 
 def main():
     
 #    print isfile(getFromConfig("path", "stylesheet_file"))
-    with open(getFromConfig("path", "stylesheet_file"), 'r') as f:
-        style = f.read()
-    app = QApplication(sys.argv)
 #    app.translate()
-    app.setStyleSheet(style)
-    
-    pixmap = QPixmap("./data/lancement.png")
-    pixmap = pixmap.scaledToHeight(150, Qt.SmoothTransformation)
-    splash = QSplashScreen(pixmap, Qt.WindowStaysOnTopHint)
-    splash.show()
-    app.processEvents()
-    
     
     
     ##########################################
@@ -100,15 +95,12 @@ def main():
             pass
     #########################################
 
-    # IMPORT MODULES
-    from classes import Market
-    from ui_manager import Ui_manager
 
     # INITIALIZATION ##  
     Market()
 
     # EXECUTE
-    setup = Ui_manager()
+    setup = Ui_manager(version)
     setup.show()
     splash.finish(setup)
     
@@ -117,6 +109,18 @@ def main():
 
 
 if __name__ == '__main__':
+    
+    app = QApplication(sys.argv)
+    with open(getFromConfig("path", "stylesheet_file"), 'r') as f:
+        style = f.read()
+    app.setStyleSheet(style)
+    
+    pixmap = QPixmap("./data/lancement.png")
+    pixmap = pixmap.scaledToHeight(150, Qt.SmoothTransformation)
+    splash = QSplashScreen(pixmap, Qt.WindowStaysOnTopHint)
+    splash.show()
+    app.processEvents()
+
     main()
 
   

@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'interface_GC\accueil.ui'
 #
-# Created: Thu May 18 12:44:12 2017
+# Created: Tue Jun 06 01:03:19 2017
 #      by: pyside-uic 0.2.15 running on PySide 1.2.4
 #
 # WARNING! All changes made in this file will be lost!
@@ -33,6 +33,8 @@ class Ui_Accueil(object):
         self.menuBar.setObjectName("menuBar")
         self.menuMise_jour = QtGui.QMenu(self.menuBar)
         self.menuMise_jour.setObjectName("menuMise_jour")
+        self.menuA_propos = QtGui.QMenu(self.menuBar)
+        self.menuA_propos.setObjectName("menuA_propos")
         Accueil.setMenuBar(self.menuBar)
         self.actionFIF = QtGui.QAction(Accueil)
         self.actionFIF.setObjectName("actionFIF")
@@ -44,6 +46,7 @@ class Ui_Accueil(object):
         self.menuMise_jour.addAction(self.actionFIA)
         self.menuMise_jour.addAction(self.actionConfig)
         self.menuBar.addAction(self.menuMise_jour.menuAction())
+        self.menuBar.addAction(self.menuA_propos.menuAction())
 
         self.retranslateUi(Accueil)
         QtCore.QMetaObject.connectSlotsByName(Accueil)
@@ -51,6 +54,7 @@ class Ui_Accueil(object):
     def retranslateUi(self, Accueil):
         Accueil.setWindowTitle(QtGui.QApplication.translate("Accueil", "Accueil", None, QtGui.QApplication.UnicodeUTF8))
         self.menuMise_jour.setTitle(QtGui.QApplication.translate("Accueil", "Mettre à jour", None, QtGui.QApplication.UnicodeUTF8))
+        self.menuA_propos.setTitle(QtGui.QApplication.translate("Accueil", "A propos", None, QtGui.QApplication.UnicodeUTF8))
         self.actionFIF.setText(QtGui.QApplication.translate("Accueil", "La base fournisseurs (fif.xslx)", None, QtGui.QApplication.UnicodeUTF8))
         self.actionFIA.setText(QtGui.QApplication.translate("Accueil", "La base clients (fia.xlsx)", None, QtGui.QApplication.UnicodeUTF8))
         self.actionConfig.setText(QtGui.QApplication.translate("Accueil", "Les données de configuration (Config.xlsx)", None, QtGui.QApplication.UnicodeUTF8))

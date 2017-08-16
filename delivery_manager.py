@@ -7,11 +7,12 @@ Created on Thu Apr 06 23:22:36 2017
 
 from PySide import QtCore, QtGui
 import sys, datetime
-
+import inspect, re
+from PIL import ImageFont
 
 from ui_delivery_manager import Ui_MainWindow as Ui_delivery_manager
-from ui_delivery_editor import Ui_ui_delivery_editor as Ui_delivery_editor
 
+from delivery_editor import deliveryEditor
 from classes import ContractsDatabase
 from classes import Market
 
@@ -32,54 +33,93 @@ class MyTreeWidget(QtGui.QTreeWidget):
     
     def __init__(self, parent = None):
         super(MyTreeWidget, self).__init__(parent)
+        self.parent = parent
         self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.setAlternatingRowColors(True)
         self.setIndentation(0)
         self.setDragDropMode(QtGui.QAbstractItemView.DragDrop)
+        self.setDefaultDropAction(QtCore.Qt.CopyAction)
         
     def dragMoveEvent(self, event):
         if event.source() != self:
             event.accept()
         else:
-            event.mimeData().setText(self.selectedItems()[0].livr.n_livr)
-            event.ignore()
+            item_selected = self.selectedItems()[0]
+            event.mimeData().setText(item_selected.livr.n_livr)
+            
+            html = "<table><tr>"
+            for i in range( 0, item_selected.columnCount(), 1):
+                text = item_selected.text(i)
+                if i != 8:
+                    text = text.replace('\n','<br/>')
+                html += "<td>"+text+"</td>"
+            html += "</tr></table>"
+            event.mimeData().setHtml(html)
+            
+            event.accept()
+            
+            
+#    def mouseReleaseEvent(self, event):
+#        print "MyTreeWidget mouseReleaseEvent"
+#        self.parent.updateDelivList()
             
     def dropEvent(self, event):
+        print "deliv drop event"
         if event.source() != self:
             n_ctr = event.mimeData().text()
             self.s_dropped_contract.emit(n_ctr)
             event.accept()
+#            event.source().updateCtrList()
         else:
             event.ignore()
+        
+        
+class TreeWidgetItemLabel(QtGui.QWidget):
+    def __init__(self, parent=None, text=""):
+        super(TreeWidgetItemLabel, self).__init__(parent)
+        mainLayout = QtGui.QVBoxLayout()
+        self.myLabel = QtGui.QLabel()
+        self.myLabel.setObjectName("label_state")
+        self.myLabel.setText("<span>"+text+"</span>")
+        self.myLabel.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignCenter)
+        self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
+        
+        try:
+            if "pay" in text.lower():
+                color = QtGui.QColor(0, 255, 40)
+            elif "confirm" in text.lower():
+                color = QtGui.QColor(255, 238, 0)
+            elif "attente" in text.lower():
+                color = QtGui.QColor(255,0,0)
+            else:
+                self.myLabel.setObjectName("")
+                color = QtGui.QColor(255,0,0)
+        except:
+            color = QtGui.QColor(255,0,0)
             
+        self.myLabel.setStyleSheet("#label_state {background-color : "+color.name()+"; color: black;}")
+        mainLayout.addWidget(self.myLabel)
+        self.setLayout(mainLayout)
+
+
+
 class TreeWidgetDelivery(QtGui.QTreeWidgetItem):
     def __init__(self, parent, livr, items):
         self.livr = livr
         QtGui.QTreeWidgetItem.__init__(self, parent, items)
           
-#        if items[-1] == "Payé":
-#            text = "Payé"
-#            color = QtGui.QColor(128,255,128)
-#        elif items[-1] == "Livré":
-#            text = "Livré"
-#            color = QtGui.QColor(0,128,255)
-#        elif items[-1] == "Confirmé":
-#            text = "Confirmé"
-#            color = QtGui.QColor(255,255,0)
-#        else:
-#            text = "En Attente"
-#            color = QtGui.QColor(192,192,192)
-#        label = QtGui.QLabel(text)
-#        label.setObjectName("label_state")
-#        label.setStyleSheet("#label_state {background-color : "+color.name()+"; color: black;}")
-##        item.setBackground(len(itemlist)-1, color)
-#        parent.setItemWidget(self, 13, label)
+    def __lt__(self, otherItem):
+        column = self.treeWidget().sortColumn()
+        try:
+            return datetime.datetime.strptime(self.text(column), "%d/%m/%Y").toordinal() > datetime.datetime.strptime(otherItem.text(column), "%d/%m/%Y").toordinal()
+        except ValueError:
+            return self.text(column) > otherItem.text(column)
             
         
 class Question(QtGui.QDialog):
     def __init__(self, parent = None, whatIsIt = ""):
-#        super(Question, self).__init__(parent)
-        QtGui.QDialog.__init__(self, parent)
+        super(Question, self).__init__(parent)
+#        QtGui.QDialog.__init__(self, parent)
         
         self.mainLayout = QtGui.QVBoxLayout()
         
@@ -109,19 +149,21 @@ class Question(QtGui.QDialog):
             return None
         
     @staticmethod
-    def changeState(parent = None, whatIsIt = ""):
+    def changeState(parent = None, whatIsIt = "", button_1 = "Oui", button_2 = "Non"):
         dialog = Question(parent, whatIsIt)
-        dialog.buttons.button(QtGui.QDialogButtonBox.Ok).setText("Oui")
-        dialog.buttons.button(QtGui.QDialogButtonBox.Cancel).setText("Non")
+        dialog.buttons.button(QtGui.QDialogButtonBox.Ok).setText(button_1)
+        dialog.buttons.button(QtGui.QDialogButtonBox.Cancel).setText(button_2)
         result = dialog.exec_()
         if result == QtGui.QDialog.Accepted:
             return True
         else:
-            return None
+            return False
         
     @staticmethod
-    def confirmPaiment(parent = None, whatIsIt = ""):
+    def confirmPaiment(parent = None, whatIsIt = "", button_1 = "Oui", button_2 = "Non"):
         dialog = Question(parent, whatIsIt)
+        dialog.buttons.button(QtGui.QDialogButtonBox.Ok).setText(button_1)
+        dialog.buttons.button(QtGui.QDialogButtonBox.Cancel).setText(button_2)
         layout = QtGui.QHBoxLayout()
         label = QtGui.QLabel("Date du paiement : ")
         w_date = QtGui.QDateEdit()
@@ -144,211 +186,9 @@ class Question(QtGui.QDialog):
 #        dialog.buttons = QtGui.QDialogButtonBox(QtGui.QDialogButtonBox.Ok, QtCore.Qt.Horizontal, None)
 #        dialog.buttons.button( QtGui.QDialogButtonBox.Cancel ).setEnabled( False )
         dialog.buttons.button( QtGui.QDialogButtonBox.Cancel ).hide()
-        result = dialog.exec_()
+        dialog.exec_()
         
-        
-class ui_new_delivery(QtGui.QWidget, QtCore.QObject):
-    def __init__(self, parent = None):
-        super(ui_new_delivery, self).__init__(parent)
-        self.ui = Ui_delivery_editor()
-        self.ui.setupUi(self)
-        
-class deliveryEditor(QtGui.QDialog, QtCore.QObject):
-    def __init__(self, parent = None, ctr = None, delivery = None):
-        super(deliveryEditor, self).__init__(parent)
-        self.setWindowIcon(QtGui.QIcon('icone.png'))
-        self.setWindowTitle('Éditeur de livraison')
-        self.oil_market = Market()
-        
-        if ctr is None: return
-        self.ctr = ctr
-        self.mainWidget = ui_new_delivery(self)
-        self.buttons = QtGui.QDialogButtonBox( QtGui.QDialogButtonBox.Cancel | QtGui.QDialogButtonBox.Ok, QtCore.Qt.Horizontal, self)
-        self.buttons.button(QtGui.QDialogButtonBox.Ok).setText("Valider")
-        self.buttons.button(QtGui.QDialogButtonBox.Cancel).setText("Annuler")
-        
-        layout = QtGui.QVBoxLayout()
-        layout.addWidget(self.mainWidget)
-        mainLayout = QtGui.QVBoxLayout()
-        mainLayout.addLayout(layout)
-        mainLayout.addWidget(self.buttons)
-        self.setLayout(mainLayout)
-
-        self.buttons.accepted.connect(self.checkDelivery)
-        self.buttons.rejected.connect(self.reject)
-        self.mainWidget.ui.cb_date.currentIndexChanged.connect(self.dateSelected)
-        
-        self.initWidget()
-        if delivery is not None:
-            self.updateWidget(delivery)
-                
-    def initWidget(self):
-        self.mainWidget.ui.l_marchandise.setText(self.oil_market.getMarchandiseFullName(self.ctr.marchandise))
-        if self.ctr.is_franco is True:
-            self.mainWidget.ui.rb_franco.setChecked(True)
-        else:
-            self.mainWidget.ui.rb_depart.setChecked(True)
-        
-        dlv_dic = self.ctr.periode_livraison
-        ordered_years = sorted(dlv_dic.keys())
-        for i in range(0, len(ordered_years), 1):
-            y = ordered_years[i]
-            for j in range(0, 12):
-                m = str(j+1).zfill(2)
-                total = format_num(dlv_dic[y][m]["total"])
-                if float(total) == 0: continue
-                date = m + '/' + str(y)
-                self.mainWidget.ui.cb_date.addItem(date)
-                
-        if self.mainWidget.ui.cb_date.count() > 0:
-            self.mainWidget.ui.cb_date.setCurrentIndex(0)
-        
-        if self.ctr.ville is not None and len(self.ctr.ville) > 0:
-            self.mainWidget.ui.l_ville.setText(self.ctr.ville)
-        else:
-            for k, l in sorted(self.ctr.livraisons.items(), key = lambda  x: x[0], reverse = True): # sorted by key/delivery number
-                if l.ville is not None and len(l.ville) > 0:
-                    self.mainWidget.ui.l_ville.setText(l.ville)
-                    break
-            
-#        self.mainWidget.ui.cb_jour.addItems(list(str(j).zfill(2) for j in range(1, 32, 1)))
-#        now = QtCore.QDate.currentDate()
-#        self.mainWidget.ui.d_date.setText(str(now.month()) + '/' + str(date.year()))
-
-    def updateWidget(self, delivery):
-#        delivery = Livraison()
-        if delivery.date_charg_livr is not None:
-            date = delivery.date_charg_livr.split('/')
-            if len(date) > 2:
-                j = date[0]
-                m = date[1]
-                y = date[2]
-            elif len(date) == 0:
-                j = '00'
-                m = "00"
-                y = "0000"
-            else:
-                j = '00'
-                m = date[0]
-                y = date[1]
-            date = m+"/"+ y
-            self.mainWidget.ui.cb_date.setCurrentIndex(self.mainWidget.ui.cb_date.findText(date))
-#            self.mainWidget.ui.cb_jour.clear()
-#            self.mainWidget.ui.cb_jour.addItems(list(str(j).zfill(2) for j in range(1, number_of_days(m,y)+1, 1)))
-            index = self.mainWidget.ui.cb_jour.findText(j.zfill(2))
-            if index >= 0:
-                self.mainWidget.ui.cb_jour.setCurrentIndex(index)
-            else: 
-                self.mainWidget.ui.cb_jour.setCurrentIndex(-1)
-                
-        if delivery.horaire_charg_livr is not None:
-            self.mainWidget.ui.l_horaire.setText(delivery.horaire_charg_livr)
-        if delivery.marchandise is not None:
-            self.mainWidget.ui.l_marchandise.setText(delivery.marchandise)
-        if delivery.quantite is not None:
-            self.mainWidget.ui.l_qte.setText(delivery.quantite)
-        if delivery.ville is not None:
-            self.mainWidget.ui.l_ville.setText(delivery.ville)
-        if delivery.ref_client is not None:
-            self.mainWidget.ui.l_ref_client.setText(delivery.ref_client)
-        if delivery.ref_fourniss is not None:
-            self.mainWidget.ui.l_ref_fourniss.setText(delivery.ref_fourniss)
-        if delivery.ref_chargement is not None:
-            self.mainWidget.ui.l_ref_charg.setText(delivery.ref_chargement)
-            
-                
-    def dateSelected(self, index):
-        sender = self.sender()
-        if index < 0:
-            return
-        m, y = sender.itemText(index).split('/')[-2], sender.itemText(index).split('/')[-1]
-        index = self.mainWidget.ui.cb_jour.currentIndex()
-        self.mainWidget.ui.cb_jour.clear()
-        self.mainWidget.ui.cb_jour.addItems(list(str(j).zfill(2) for j in range(1, number_of_days(m,y)+1, 1)))
-        if index >= self.mainWidget.ui.cb_jour.count() or index < 0:
-            self.mainWidget.ui.cb_jour.setCurrentIndex(0)
-        else:
-            self.mainWidget.ui.cb_jour.setCurrentIndex(index)
-        total = format_num(self.ctr.periode_livraison[y][m]["total"])
-        done = format_num(self.ctr.periode_livraison[y][m]["done"])
-        maximum = format_num(float(total) - float(done) )
-        self.mainWidget.ui.l_qte.setPlaceholderText('max: '+maximum)
-        
-        
-    def checkDelivery(self):
-        print "checkDelivery"
-        to_complete = 0
-        if self.mainWidget.ui.cb_jour.currentIndex() < 0:
-            to_complete += 1
-            self.mainWidget.ui.cb_jour.setStyleSheet("#cb_jour { border: 3px solid red; }")
-        else:
-            self.mainWidget.ui.cb_jour.setStyleSheet("")
-            
-        if self.mainWidget.ui.cb_date.currentIndex() < 0:
-            to_complete += 1
-            self.mainWidget.ui.cb_date.setStyleSheet("#cb_date { border: 3px solid red; }")
-        else:
-            self.mainWidget.ui.cb_date.setStyleSheet("")
-            
-        if len(self.mainWidget.ui.l_ville.text()) < 1:
-            to_complete += 1
-            self.mainWidget.ui.l_ville.setStyleSheet("#l_ville { border: 3px solid red; }")
-        else:
-            self.mainWidget.ui.l_ville.setStyleSheet("")
-            
-        print self.mainWidget.ui.l_qte.text()
-        if len(self.mainWidget.ui.l_qte.text()) < 1:
-            to_complete += 1
-            self.mainWidget.ui.l_qte.setStyleSheet("#l_qte { border: 3px solid red; }")
-        else:
-            self.mainWidget.ui.l_qte.setStyleSheet("")
-            
-        if len(self.mainWidget.ui.l_marchandise.text()) < 1:
-            to_complete += 1
-            self.mainWidget.ui.l_marchandise.setStyleSheet("#l_marchandise { border: 3px solid red; }")
-        else:
-            self.mainWidget.ui.l_marchandise.setStyleSheet("")
-            
-        if to_complete == 0:
-            self.accept()
-    
-    @staticmethod
-    def commandDelivery(parent, ctr, delivery = None):
-        dialog = deliveryEditor(parent, ctr, delivery)
-        result = dialog.exec_()
-        if result == QtGui.QDialog.Accepted:
-            dic = {}
-            dic["date_appel"] = datetime.datetime.now().strftime("%d/%m/%Y")
-            dic["date_charg_livr"] = dialog.mainWidget.ui.cb_jour.currentText() + '/' + dialog.mainWidget.ui.cb_date.currentText()
-            dic["horaire_charg_livr"] = dialog.mainWidget.ui.l_horaire.text()
-            dic["quantite"] = dialog.mainWidget.ui.l_qte.text()
-            dic["marchandise"] = dialog.mainWidget.ui.l_marchandise.text()
-            dic["ville"] = dialog.mainWidget.ui.l_ville.text()
-            dic["ref_client"] = dialog.mainWidget.ui.l_ref_client.text()
-            dic["ref_fourniss"] = dialog.mainWidget.ui.l_ref_fourniss.text()
-            dic["ref_chargement"] = dialog.mainWidget.ui.l_ref_charg.text()
-            return dic
-        else:
-            return None
        
-    @staticmethod
-    def updateDelivery(parent, ctr, delivery):
-        dialog = deliveryEditor(parent, ctr, delivery)
-        result = dialog.exec_()
-        if result == QtGui.QDialog.Accepted:
-            delivery.date_charg_livr = dialog.mainWidget.ui.cb_jour.currentText()+"/"+dialog.mainWidget.ui.cb_date.currentText()
-            delivery.horaire_charg_livr = dialog.mainWidget.ui.l_horaire.text()
-            delivery.quantite = dialog.mainWidget.ui.l_qte.text()
-            delivery.marchandise = dialog.mainWidget.ui.l_marchandise.text()
-            delivery.ville = dialog.mainWidget.ui.l_ville.text()
-            delivery.ref_client = dialog.mainWidget.ui.l_ref_client.text()
-            delivery.ref_fourniss = dialog.mainWidget.ui.l_ref_fourniss.text()
-            delivery.ref_chargement = dialog.mainWidget.ui.l_ref_charg.text()
-            return delivery
-        else:
-            return None
-    
-        
 class DeliveryManager(QtGui.QMainWindow, QtCore.QObject):
     
     def __init__(self, parent = None):
@@ -360,7 +200,6 @@ class DeliveryManager(QtGui.QMainWindow, QtCore.QObject):
         self.comm = self.cDB.communicator
         self.oil_market = Market()
         
-        self.comm.s_cDB_updated.connect(self.updateSorters)
         
         self.ui.t_deliver_list.deleteLater()
         self.t_deliver_list = MyTreeWidget(self)
@@ -374,6 +213,7 @@ class DeliveryManager(QtGui.QMainWindow, QtCore.QObject):
 #        self.t_deliver_list.header().setResizeMode(QtGui.QHeaderView.Interactive)
         self.t_deliver_list.setDragDropMode(QtGui.QAbstractItemView.DragDrop)
         self.ui.horizontalLayout.addWidget(self.t_deliver_list)
+        self.ui.t_deliv_tot.setIndentation(0)
         
         self.ui.l_ref_client.installEventFilter(self)
         self.ui.l_ref_fourniss.installEventFilter(self)
@@ -385,20 +225,17 @@ class DeliveryManager(QtGui.QMainWindow, QtCore.QObject):
         self.ui.b_rechercher.setEnabled(False)
         
         self.popMenu = QtGui.QMenu(self)
-        self.actionSetConfirm_cmd = QtGui.QAction("Confirmer la demande", self)
-        self.actionSetConfirm_cmd.triggered.connect(self.setConfirmation)
-        self.actionSetConfirm_dlv = QtGui.QAction("Confirmer la livraison", self)
+        self.actionSetConfirm_dlv = QtGui.QAction("Confirmer/infirmer la livraison", self)
         self.actionSetConfirm_dlv.triggered.connect(self.setConfirmationLivraison)
-        self.actionSetPaied = QtGui.QAction("Confirmer le paiement", self)
+        self.actionSetPaied = QtGui.QAction("Confirmer/infirmer le paiement", self)
         self.actionSetPaied.triggered.connect(self.setPaiment)
         self.actionModifyDeliv = QtGui.QAction("Modifier la livraison", self)
         self.actionModifyDeliv.triggered.connect(self.modifyDelivery)
         self.actionRemove = QtGui.QAction("Supprimer la livraison", self)
         self.actionRemove.triggered.connect(self.removeDelivery)
-        self.actionImport = QtGui.QAction("Importer depuis Execution.xlsx", self)
+        self.actionImport = QtGui.QAction("Importer des livraisons depuis Execution.xlsx", self)
         self.actionImport.triggered.connect(self.importDeliveries)
         
-        self.popMenu.addAction(self.actionSetConfirm_cmd)
         self.popMenu.addAction(self.actionSetConfirm_dlv)
         self.popMenu.addAction(self.actionSetPaied)
         self.popMenu.addSeparator()
@@ -414,10 +251,19 @@ class DeliveryManager(QtGui.QMainWindow, QtCore.QObject):
         self.actionImport2.triggered.connect(self.importDeliveries)
         self.popMenu2.addAction(self.actionImport)
         
+        self.ui.cb_marchandise.view().setAlternatingRowColors(True)
+        self.ui.cb_sort_client.view().setAlternatingRowColors(True)
+        self.ui.cb_sort_fourniss_2.view().setAlternatingRowColors(True)
+        
         self.ui.rb_date_appel.setChecked(True)
-        self.initDelivList()
         self.initMarchandiseList()
-        self.ui.cb_year.currentIndexChanged[int].connect(self.updateDelivList)
+        self.initOrdererClient()
+        self.initOrdererFourniss()
+        self.initOrdererDate()
+        self.initDelivList()
+        
+        self.t_deliver_list.itemSelectionChanged.connect(self.itemSelected)
+        self.ui.cb_year.currentIndexChanged.connect(self.updateDelivList)
         self.ui.rb_date_appel.toggled.connect(self.updateDelivList)
         
         self.ui.cb_month.currentIndexChanged.connect(self.updateDelivList)
@@ -425,29 +271,43 @@ class DeliveryManager(QtGui.QMainWindow, QtCore.QObject):
         self.ui.cb_sort_fourniss_2.currentIndexChanged.connect(self.updateDelivList)
         self.ui.cb_marchandise.currentIndexChanged.connect(self.updateDelivList)
         self.ui.b_reinit_list.clicked.connect(self.reinitSorters)
-        self.updateSorters()
+        self.comm.s_cDB_updated.connect(self.updateSorters)
         
         
-    
     def eventFilter(self, obj, event):
-        if event.type() == QtCore.QEvent.MouseButtonRelease:
-            if obj == self.ui.l_ref_charg or obj == self.ui.l_ref_client or obj == self.ui.l_ref_fourniss:
-                self.specifyResearch(obj)
-                return True
+        try:
+            if event.type() == QtCore.QEvent.MouseButtonRelease:
+                if obj == self.ui.l_ref_charg or obj == self.ui.l_ref_client or obj == self.ui.l_ref_fourniss:
+                    self.specifyResearch(obj)
+                    return True
+        except: pass
         return False
     
+    @QtCore.Slot()
+    def itemSelected(self):
+#        modifiers = QtGui.QApplication.keyboardModifiers()
+#        if modifiers == QtCore.Qt.ControlModifier:
+#            self.t_deliver_list.setSelectionMode( QtGui.QAbstractItemView.MultiSelection ) 
+#        else:
+#            self.t_deliver_list.setSelectionMode( QtGui.QAbstractItemView.SingleSelection ) 
+        pass
+            
+            
     def customContextMenu(self, pos):
         if self.getSelectedDelivery() is None:
             self.popMenu2.exec_(self.t_deliver_list.mapToGlobal(pos))
         else:
             self.popMenu.exec_(self.t_deliver_list.mapToGlobal(pos))
         
+        
+        
+        
     def initMarchandiseList(self):
+        self.ui.cb_marchandise.blockSignals(True)
         marchandise_list = self.oil_market.marchandises_list['fr']
         ordered_marchandise_list = sorted(marchandise_list)
         zipped = list(enumerate(ordered_marchandise_list))
         
-        self.ui.cb_marchandise.blockSignals(True)
         self.ui.cb_marchandise.clear()
         self.ui.cb_marchandise.addItem("- Toutes -", userData = None)
         
@@ -460,6 +320,9 @@ class DeliveryManager(QtGui.QMainWindow, QtCore.QObject):
         
         
     def initDelivList(self):
+        font = self.t_deliver_list.header().font()
+        font.setPointSize(10)
+        
         col1 = "Date d'appel".decode('utf-8').strip()
         col2 = "Client".decode('utf-8').strip()
         col3 = "Fournisseur".decode('utf-8').strip()
@@ -474,63 +337,116 @@ class DeliveryManager(QtGui.QMainWindow, QtCore.QObject):
         col12 = "Réf. client".decode('utf-8').strip()
         col13 = "Réf. chargement".decode('utf-8').strip()
         col14 = "Statut".decode('utf-8').strip()
-        
-        self.t_deliver_list.setHeaderLabels([col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14])
-        self.updateDelivList()
+        headers = [col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14]
+        self.t_deliver_list.setHeaderLabels(headers)
         self.t_deliver_list.setSortingEnabled(True)
-        self.t_deliver_list.header().setResizeMode(QtGui.QHeaderView.ResizeToContents)
-
-        font = self.t_deliver_list.header().font()
-        font.setPointSize(10)
         self.t_deliver_list.header().setFont( font )
-        for i in range(0, 14, 1):
+        for i in range(0, len(headers), 1):
             self.t_deliver_list.headerItem().setTextAlignment(i, QtCore.Qt.AlignCenter)
 
+        col1 = "Qte totale (T)".decode('utf-8').strip()
+        col2 = "Qte à livrer (T)".decode('utf-8').strip()
+        headers = [col1, col2]
+        self.ui.t_deliv_tot.setHeaderLabels(headers)
+        self.ui.t_deliv_tot.setSortingEnabled(True)
+        self.ui.t_deliv_tot.header().setFont( font )
+        width = self.ui.t_deliv_tot.parent().sizeHint().width()
+        for i in range(0, len(headers), 1):
+            self.ui.t_deliv_tot.headerItem().setTextAlignment(i, QtCore.Qt.AlignCenter)
+            self.ui.t_deliv_tot.header().resizeSection(i, width/3)
+        self.ui.t_deliv_tot.header().setStretchLastSection(True)
         
-    def setConfirmation(self):
-        livr_selected = self.getSelectedDelivery()
-        if livr_selected is None:
-            return 
-        ctr = self.cDB.getContractsByNum(livr_selected.n_ctr, NUM_CTR)[0]
-        res = (Question.changeState(whatIsIt = "Confirmer la demande de livraison ?"))
-        ctr.confirmDelivery(livr_selected, res)
-        self.cDB.updateContract(ctr)
-        
+        self.updateDelivList()
+        self.t_deliver_list.header().setResizeMode(QtGui.QHeaderView.ResizeToContents)
+        self.t_deliver_list.header().setResizeMode(QtGui.QHeaderView.Interactive)
+              
         
     def setConfirmationLivraison(self):
         livr_selected = self.getSelectedDelivery()
         if livr_selected is None:
             return 
-        ctr = self.cDB.getContractsByNum(livr_selected.n_ctr, NUM_CTR)[0]
-        res = Question.changeState(whatIsIt = "Confirmer la demande de livraison ?")
-        ctr.validateDelivery(livr_selected, res)
-        self.cDB.updateContract(ctr)
+        error_occured = 0
+        ctr = self.cDB.getContractByNum(livr_selected.n_ctr)
+        res = Question.changeState(whatIsIt = "À propos de la livraison :", button_1="Confimer", button_2="Déconfirmer")
+        res = ctr.confirmDelivery(livr_selected, res)
+        if res is None or res == 0:
+            if self.cDB.updateContract(ctr) < 0:
+                ctr.confirmDelivery(livr_selected, not res)
+                error_occured += 1
+        else:
+            error_occured += 1
+            
+        if error_occured > 0:
+            Question.warn(whatIsIt = "Erreur lors de l'édition de Execution \nVeuillez reessayer ultérieurement...")
+            
     
     def setPaiment(self):
         livr_selected = self.getSelectedDelivery()
         if livr_selected is None:
             return 
-        ctr = self.cDB.getContractsByNum(livr_selected.n_ctr, NUM_CTR)[0]
-        res = Question.confirmPaiment(whatIsIt = "Confirmer le paiement ?")
-        if res is None:
-            return
-        ctr.validatePaiment(livr_selected, res)
-        self.cDB.updateContract(ctr)
-    
-    def modifyDelivery(self):
-        livr_selected = self.getSelectedDelivery()
-        if livr_selected is None:
-            return 
-        ctr = self.cDB.getContractsByNum(livr_selected.n_ctr, NUM_CTR)[0]
-        dlv = deliveryEditor.updateDelivery(self, ctr, livr_selected)
-        if dlv is not None:
-            ctr.updateDelivery(dlv)
-            self.cDB.updateContract(ctr)
         
-#        if dic is not None: 
-#            ctr = self.getSelectedContract()
-#            ctr.updateDelivery(dic)
-#            self.cDB.updateContract(ctr)
+        error_occured = 0
+        ctr = self.cDB.getContractByNum(livr_selected.n_ctr)
+        res = Question.confirmPaiment(whatIsIt = "À propos du paiement :", button_1="Confimer", button_2="Déconfirmer")
+        res = ctr.validatePaiment(livr_selected, res)
+        if res is None or res == 0:
+            if self.cDB.updateContract(ctr) < 0:
+                ctr.validatePaiment(livr_selected, res)
+                error_occured += 1
+        else:
+            error_occured += 1
+            
+        if error_occured > 0:
+            Question.warn(whatIsIt = "Erreur lors de l'édition de Execution \nVeuillez reessayer ultérieurement...")
+    
+    
+    def addDelivery(self, ctr):
+        if ctr is None:
+            return 
+        error_occured = 0
+        dic = deliveryEditor.commandDelivery(self, ctr)
+        if dic is not None: 
+            res, newDeliv = ctr.newDelivery(dic)
+            if res == 0: # tout va bien
+                if self.cDB.updateContract(ctr) < 0:
+                    error_occured += 1
+            else: error_occured += 1
+        
+        if error_occured > 0:
+            Question.warn(whatIsIt = "Erreur lors de l'édition de Execution \nVeuillez reessayer ultérieurement...")
+            self.modifyDelivery(newDeliv)
+            
+                
+    
+    
+    def modifyDelivery(self, dlv=None):
+        checkDlvNumber = False
+        if dlv is None:
+            dlv = self.getSelectedDelivery()
+        else:
+            checkDlvNumber = True
+            
+        if dlv is None:
+            return 
+        
+        ctr = self.cDB.getContractByNum(dlv.n_ctr)
+        if checkDlvNumber:
+            dlv = ctr.checkKey(dlv)
+            
+        error_occured = 0
+        dlv = deliveryEditor.updateDelivery(self, ctr, dlv)
+        if dlv is not None:
+            res = ctr.updateDelivery(dlv)
+            if res is None:
+                if self.cDB.updateContract(ctr, wait=True) < 0:
+                    error_occured += 1
+            else: error_occured += 1
+                    
+        if error_occured > 0:
+                Question.warn(whatIsIt = "Erreur lors de l'édition de Execution \nVeuillez reessayer ultérieurement...")
+                self.modifyDelivery(dlv)
+        
+        
         
         
     @QtCore.Slot()
@@ -543,10 +459,11 @@ class DeliveryManager(QtGui.QMainWindow, QtCore.QObject):
         reply = QtGui.QMessageBox.question(self, 'Attention', message, QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
 
         if reply == QtGui.QMessageBox.Yes:
-            ctr.removeDelivery(livr_selected)
-            message = 'Pensez à supprimer la ligne correspondante du fichier livraisons.'
-            QtGui.QMessageBox.question(self,'Attention !' , message, QtGui.QMessageBox.Yes)
-            self.cDB.updateContract(ctr)
+            res = ctr.removeDelivery(livr_selected)
+            if res is None or res == 0:
+                self.cDB.updateContract(ctr)
+            else:
+                Question.warn(whatIsIt = "Veuillez reessayer ultérieurement...\nErreur lors de l'édition de Execution.xlsx.")
             
 #    from classes import Livraison
     @QtCore.Slot()
@@ -566,7 +483,9 @@ class DeliveryManager(QtGui.QMainWindow, QtCore.QObject):
         progressDialog.show()
         QtGui.QApplication.processEvents()
         
-        ReverseExecutionParser()
+        if ReverseExecutionParser() < 0:
+            Question.warn(whatIsIt = "Veuillez reessayer ultérieurement...\nErreur lors de l'édition de Execution.xlsx.")
+            
         
         progressDialog.close()
         QtGui.QApplication.processEvents()
@@ -581,22 +500,36 @@ class DeliveryManager(QtGui.QMainWindow, QtCore.QObject):
         return items_selected[0].livr
     
     def updateSorters(self):
-        self.initOrdererClient()
-        self.initOrdererFourniss()
         self.initOrdererDate()
+        self.updateDelivList()
         
     def reinitSorters(self):
-        self.blockSignals(True)
+        self.ui.cb_sort_client.blockSignals(True)
+        self.ui.cb_sort_fourniss_2.blockSignals(True)
+        self.ui.cb_marchandise.blockSignals(True)
+        self.ui.cb_month.blockSignals(True)
+        self.ui.cb_year.blockSignals(True)
         self.ui.cb_sort_client.setCurrentIndex(0)
         self.ui.cb_sort_fourniss_2.setCurrentIndex(0)
         self.ui.cb_marchandise.setCurrentIndex(0)
         self.ui.cb_month.setCurrentIndex(0)
-        self.ui.cb_year.setCurrentIndex(1)
         self.ui.cb_year.setCurrentIndex(0)
-        self.blockSignals(False)
+        self.ui.cb_sort_client.blockSignals(False)
+        self.ui.cb_sort_fourniss_2.blockSignals(False)
+        self.ui.cb_marchandise.blockSignals(False)
+        self.ui.cb_month.blockSignals(False)
+        self.ui.cb_year.blockSignals(False)
         self.updateDelivList()
         
     def initOrdererDate(self):
+        try:
+            sender = self.sender()
+            print "initOrdererDate from "+sender.objectName()
+        except:
+            curframe = inspect.currentframe()
+            calframe = inspect.getouterframes(curframe, 2)
+            print "initOrdererDate called by ", calframe[1][3]
+            
         self.ui.cb_month.blockSignals(True)
         self.ui.cb_year.blockSignals(True)
         month_names = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
@@ -619,12 +552,15 @@ class DeliveryManager(QtGui.QMainWindow, QtCore.QObject):
         self.ui.cb_year.addItem("Année", userData = None)
         for y in range(year_now, year_max+1, 1):
             self.ui.cb_year.addItem(str(y), userData = str(y))
-        self.ui.cb_month.blockSignals(False)
-        self.ui.cb_year.blockSignals(False)
         
         index = self.ui.cb_year.findText(str(year_now))
         if index < 0: index = 0
         self.ui.cb_year.setCurrentIndex(index)
+
+        self.ui.cb_month.blockSignals(False)
+        self.ui.cb_year.blockSignals(False)
+        print "end of initOrdererDate"
+        
     
     def initOrdererClient(self):
         self.ui.cb_sort_client.blockSignals(True)
@@ -711,7 +647,10 @@ class DeliveryManager(QtGui.QMainWindow, QtCore.QObject):
         return deliv_list 
     
     def updateDelivList(self, deliv_list = None):
-        print "updateDelivList"
+        
+        curframe = inspect.currentframe()
+        calframe = inspect.getouterframes(curframe, 1)
+        print "updateDelivList called by ", calframe[1][3]
         
         self.t_deliver_list.clear()
         if deliv_list is None or isinstance(deliv_list, list) == False:
@@ -720,85 +659,83 @@ class DeliveryManager(QtGui.QMainWindow, QtCore.QObject):
         if deliv_list is None: 
             return
         
+        font = ImageFont.truetype('times.ttf', 12)
         itemlist = []
-        cpt = 0
         for deliv in deliv_list:
             if deliv is None:
                 itemlist = [' - ', ' - ', ' - ', ' - ', ' - ', ' - ', ' - ', ' - ', ' - ', ' - ', ' - ', ' - ', ' - ']
             else:
-                ctr = self.cDB.getContractsByNum(deliv.n_ctr, NUM_CTR)[0]
-                if ctr.is_franco : depart = "Départ"
-                else: depart = "Franco"
+                
+                ctr = self.cDB.getContractByNum(deliv.n_ctr)
+                if ctr.is_franco : depart = "Franco"
+                else: depart = "Départ"
                 state = "En attente"
                 if deliv.is_confirmed: state = "Confirmé"
-                if deliv.is_delivered: state = "Livré"
                 if deliv.is_paid: state = "Payé"
                 if self.oil_market.marchandiseExist(ctr.marchandise):
                     full_marchandise = self.oil_market.getMarchandiseFullName(ctr.marchandise)
-                try:
-                    nom_client = ctr.getClientName(shortest=True) + "\n" + ctr.get_uVilleAcheteur()
-                    nom_fourniss = ctr.getFournissName(shortest=True) + "\n" + ctr.get_uVilleVendeur()
-                    itemlist = [deliv.date_appel, nom_client, nom_fourniss, depart, deliv.ville, deliv.date_charg_livr, deliv.horaire_charg_livr, format_num(deliv.quantite), full_marchandise, deliv.n_ctr, deliv.ref_fourniss, deliv.ref_client, deliv.ref_chargement, state]
-                except:
-                    continue
-            newline = TreeWidgetDelivery(self.t_deliver_list, deliv, itemlist)
-            for i in range(0, 14, 1):
-                newline.setTextAlignment(i, QtCore.Qt.AlignCenter)
+                    string = ""
+                    current_size = 0
+                    for word in full_marchandise.split(' '):
+                        current_size += font.getsize(word)[0]
+                        if current_size > 80:
+                            string += "<br/>"
+                            current_size = 0
+                        string += word + ' '
+                    full_marchandise = string
+                else:
+                    full_marchandise = ""
                 
-            if itemlist[-1] == "Payé":
-                text = "Payé"
-                color = QtGui.QColor(6, 76, 15)
-            elif itemlist[-1] == "Livré":
-                text = "Livré"
-                color = QtGui.QColor(96, 9, 9)
-            elif itemlist[-1] == "Confirmé":
-                text = "Confirmé"
-                color = QtGui.QColor(0, 0, 0)
-            else:
-                text = "En Attente"
-                color = QtGui.QColor(50,50,50)
+                nom_client = ctr.getClientName(shortest=True).upper() + "<br/>" +"<i>"+ ctr.get_uVilleAcheteur() + "</i>"
+                nom_fourniss = ctr.getFournissName(shortest=True).upper() + "<br/>" +"<i>"+ ctr.get_uVilleVendeur()+ "</i>"
+            
+                itemlist = [deliv.date_appel, nom_client, nom_fourniss, depart, deliv.ville, deliv.date_charg_livr, deliv.horaire_charg_livr, format_num(deliv.quantite), full_marchandise, deliv.n_ctr, deliv.ref_fourniss, deliv.ref_client, deliv.ref_chargement, state]
 
-            newline.setForeground(len(itemlist)-1, color)
-#            newline.setAutoFillBackground(False)
-#            newline.setBackground(len(itemlist)-1, color)
-#            label = QtGui.QLabel(text)
-#            label.setObjectName("label_state")
-#            label.setStyleSheet("#label_state {background-color : "+color.name()+"; color: black;}")
-#            newline.setBackground(len(itemlist)-1, color)
-#            line = self.t_deliver_list.itemFromIndex( cpt )
-#            self.t_deliver_list.setItemWidget(line, 13, label)
-            cpt += 1
+            blankItemlist = list(re.sub(r"<[^>]*>",r'', s.replace("<br/>", '\n')) for s in itemlist)
+            newline = TreeWidgetDelivery(self.t_deliver_list, deliv, blankItemlist)
+            
+            for i in range(0, len(itemlist)):
+                item = itemlist[i]
+                self.t_deliver_list.setItemWidget(newline, i, TreeWidgetItemLabel(self, item))
+            
             
         self.t_deliver_list.header().setResizeMode(QtGui.QHeaderView.ResizeToContents)
         self.t_deliver_list.header().setResizeMode(QtGui.QHeaderView.Interactive)
         self.t_deliver_list.setAutoFillBackground(False)
         for i in range(0, len(itemlist), 1):
             self.t_deliver_list.resizeColumnToContents(i)
-            
-#        model = self.t_deliver_list.selectionModel()
-#        indexList = model.selectedIndexes()
-#        line = self.t_deliver_list.itemFromIndex( indexList[cpt] )
-#        text = line.data(indexList[cpt].column(), QtGui.Qt.DisplayRole).toString()
-#        if text == "Payé":
-#            color = QtGui.QColor(128,255,128)
-#        elif text == "Livré":
-#            color = QtGui.QColor(0,128,255)
-#        elif text == "Confirmé":
-#            color = QtGui.QColor(255,255,0)
-#        else:
-#            color = QtGui.QColor(192,192,192)
-#        label = QtGui.QLabel(text)
-#        label.setObjectName("label_state")
-
-#         TreeWidgetItem->setBackgroundColor(col, QColor(255, 255, 0, 100))
-#        item.setForeground(len(itemlist)-1, color)
-            
+   
 #        self.t_deliver_list.header().setResizeMode(self.t_deliver_list.columnCount()-3, QtGui.QHeaderView.Stretch)
-        self.repaint()
+        self.updateTotal(deliv_list)
+        
+    
+    def updateTotal(self, deliv_list):
+        qte_totale = 0.0
+        
+        self.ui.t_deliv_tot.clear()
+        for deliv in deliv_list:
+            qte_totale += float(format_num(deliv.quantite))
+            
+        qte_a_livrer = qte_totale
+        for deliv in deliv_list:
+            if deliv.is_confirmed:
+                qte_a_livrer -= float(format_num(deliv.quantite))
+                
+        
+        
+        newLine = QtGui.QTreeWidgetItem(self.ui.t_deliv_tot, [""]*2)
+        self.ui.t_deliv_tot.setItemWidget(newLine, 0, TreeWidgetItemLabel(self, str(qte_totale)))
+        self.ui.t_deliv_tot.setItemWidget(newLine, 1, TreeWidgetItemLabel(self, str(qte_a_livrer)))
+        
+        height = self.ui.t_deliv_tot.visualItemRect(newLine).height()
+        width = self.ui.t_deliv_tot.parent().sizeHint().width()
+        self.ui.t_deliv_tot.setFixedHeight(height*2)
+        self.ui.t_deliv_tot.header().resizeSection(0, width/3)
+        self.ui.t_deliv_tot.header().resizeSection(1, width/3)
         
     @QtCore.Slot(str)
-    def loadDeliveriesFromContract(self, n_ctr):
-        ctr = self.cDB.getContractsByNum(n_ctr, NUM_CTR)[0]
+    def loadDeliveriesFromContract(self,ctr):
+        ctr = self.cDB.getContractsByNum(ctr, NUM_CTR)[0]
 #        dlv = Contract.livraisons
         dlv_list = list(l for n, l in ctr.livraisons.items())
         self.updateDelivList(dlv_list)

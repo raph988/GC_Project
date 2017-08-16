@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'interface_GC\ui_delivery_manager.ui'
 #
-# Created: Fri May 19 15:11:27 2017
+# Created: Mon Aug 07 21:18:38 2017
 #      by: pyside-uic 0.2.15 running on PySide 1.2.4
 #
 # WARNING! All changes made in this file will be lost!
@@ -177,6 +177,14 @@ class Ui_MainWindow(object):
         self.t_deliver_list.header().setSortIndicatorShown(True)
         self.horizontalLayout.addWidget(self.t_deliver_list)
         self.verticalLayout.addLayout(self.horizontalLayout)
+        self.horizontalLayout_8 = QtGui.QHBoxLayout()
+        self.horizontalLayout_8.setObjectName("horizontalLayout_8")
+        self.t_deliv_tot = QtGui.QTreeWidget(self.dlv_centralwidget)
+        self.t_deliv_tot.setEnabled(False)
+        self.t_deliv_tot.setObjectName("t_deliv_tot")
+        self.t_deliv_tot.headerItem().setText(0, "1")
+        self.horizontalLayout_8.addWidget(self.t_deliv_tot)
+        self.verticalLayout.addLayout(self.horizontalLayout_8)
         MainWindow.setCentralWidget(self.dlv_centralwidget)
 
         self.retranslateUi(MainWindow)

@@ -14,7 +14,7 @@ import datetime
 
 from ui_contracteditor import Ui_ContractEditor
 from classes import ContractsDatabase, Market #,Contract
-from utils import getFromConfig
+from utils import getFromConfig, _format
 
 QtCore.QTextCodec.setCodecForCStrings(QtCore.QTextCodec.codecForName('utf-8'))
 
@@ -38,7 +38,7 @@ class CalendarDeliveries(QtGui.QWidget):
         super(CalendarDeliveries, self).__init__(parent)
         
         self.setObjectName("calendar_dlv")
-        
+#        self.setMinimumSize(200)
         mainLayout = QtGui.QVBoxLayout()
         self.month_names = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
         self.month_values = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"]
@@ -46,19 +46,6 @@ class CalendarDeliveries(QtGui.QWidget):
         self.last_year = datetime.datetime.now().year
         
         self.tab_w = QtGui.QTabWidget()
-#        self.tab_w.tabsClosable(True)
-        style = """
-        QTabWidget::pane { \
-              border-top: 2px solid #C2C7CB; \
-              border-top: 2px solid #C2C7CB; \
-          } \
-        QTabWidget::tab { \
-            border: 2px solid grey; \
-            min-width: 8ex; \
-            padding: 8px; \
-        }
-        """
-#        self.tab_w.setStyleSheet(style)
         self.addNewTab(0)
         self.tab_w.addTab(QtGui.QWidget(), "+")
         
@@ -104,7 +91,7 @@ class CalendarDeliveries(QtGui.QWidget):
             self.addNewTab(index = None)
         
     def addNewTab(self, index = None, tab = None):
-        self.blockSignals(True)
+        self.tab_w.blockSignals(True)
         if index is None and self.tab_w.count() > 0 : 
             index = self.tab_w.count()-1
         
@@ -117,7 +104,7 @@ class CalendarDeliveries(QtGui.QWidget):
             self.last_year += 1
             
         self.tab_w.setCurrentIndex(self.tab_w.count()-2)
-        self.blockSignals(False)
+        self.tab_w.blockSignals(False)
         
 
     def createNewTab(self):
@@ -134,8 +121,8 @@ class CalendarDeliveries(QtGui.QWidget):
         
         tableWidget.horizontalHeader().setStretchLastSection(True)
         tableWidget.verticalHeader().setStretchLastSection(True)
-        tableWidget.horizontalScrollBar().setDisabled(True)
-        tableWidget.verticalScrollBar().setDisabled(True)
+#        tableWidget.horizontalScrollBar().setDisabled(False)
+#        tableWidget.verticalScrollBar().setDisabled(False)
         
         month_id = 0
         for i in range(0, tableWidget.rowCount(), 1):
@@ -150,7 +137,7 @@ class CalendarDeliveries(QtGui.QWidget):
         
         tableWidget.resizeColumnsToContents()
         tableWidget.resizeRowsToContents()
-        tableWidget.setFixedSize(tableWidget.horizontalHeader().length()+80, tableWidget.verticalHeader().length() + 35)
+        tableWidget.setFixedSize(tableWidget.horizontalHeader().length()+85, tableWidget.verticalHeader().length() + 70)
 
         layout.addWidget(tableWidget)
         main.setLayout(layout)
@@ -205,26 +192,51 @@ class ContractEditor(QtGui.QWidget, QtCore.QObject):
 #        self.new_contract = Contract()
         self.new_contract = None
         
-
-        self.w_dlv_date = CalendarDeliveries()
+        self.w_dlv = QtGui.QWidget()
         layout = QtGui.QVBoxLayout()
+        label_detail = QtGui.QLabel("Détails :")
+        self.t_dlv = QtGui.QTextEdit()
+        self.w_dlv_date = CalendarDeliveries()
         layout.addWidget(self.w_dlv_date)
-        self.ui.date_livraison.setLayout(layout)
-        
-        self.ui.date_livraison.updateGeometry()
-        self.ui.date_livraison.resize(self.w_dlv_date.minimumSize())
-        self.w_dlv_date.updateGeometry()
-        self.w_dlv_date.resize(self.w_dlv_date.minimumSize())
-        
-        self.ui.date_livraison.adjustSize()
+        layout.addWidget(label_detail)
+        layout.addWidget(self.t_dlv)
+        self.w_dlv.setLayout(layout)
+        scrollArea = QtGui.QScrollArea()
+        scrollArea.setWidgetResizable(True)
+        scrollArea.setWidget(self.w_dlv)
+        scrollArea.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Preferred)
+
+        self.ui.formLayout.setWidget(11, QtGui.QFormLayout.FieldRole, scrollArea)
+
+#        layout = QtGui.QVBoxLayout()
+#        layout.addWidget(self.w_dlv_date)
+#        self.ui.date_livraison.setLayout(layout)
+#        
+#        self.ui.date_livraison.updateGeometry()
+#        self.ui.date_livraison.resize(self.w_dlv_date.minimumSize())
+#        self.ui.date_livraison.adjustSize()
+#        self.w_dlv_date.updateGeometry()
+#        self.w_dlv_date.adjustSize()
+#        self.ui.date_livraison.adjustSize()
         
         self.ui.n_contrat.setEnabled(True)
-        self.connectionsManager()
+        self.ui.cb_adr_depart.view().setAlternatingRowColors(True)
+        self.ui.cb_adr_livraison.view().setAlternatingRowColors(True)
+        self.ui.cb_logement.view().setAlternatingRowColors(True)
+        self.ui.cb_marchandise.view().setAlternatingRowColors(True)
+        self.ui.cb_nom_acheteur.view().setAlternatingRowColors(True)
+        self.ui.cb_nom_vendeur.view().setAlternatingRowColors(True)
+        self.ui.cb_usine.view().setAlternatingRowColors(True)
+#        self.ui.cb_usine.setMinimumHeight(100)
         
+        self.ui.qte_total.setValidator(QtGui.QDoubleValidator(0.0, 999999.0, 10, self))
+        self.ui.prix.setValidator(QtGui.QDoubleValidator(0.0, 999999.0, 10, self))
         self.initMonnaie()
         self.initMarchandiseList()
         self.initPaiementList()
         self.initLogementList()
+        self.connectionsManager()
+        self.repaint()
         
         
     def setCreatorMode(self, b = True):
@@ -239,10 +251,16 @@ class ContractEditor(QtGui.QWidget, QtCore.QObject):
         self.ui.cb_nom_acheteur.currentIndexChanged[int].connect(self.updateAdressList)
         self.ui.cb_nom_vendeur.currentIndexChanged[int].connect(self.updateAdressList)
         
-        self.ui.quantite.textEdited[str].connect(self.updateUnite)
+        self.ui.cb_nom_acheteur.currentIndexChanged[int].connect(self.updateUsine)
+        self.ui.cb_nom_vendeur.currentIndexChanged[int].connect(self.updateUsine)
+        
+        self.ui.cb_franco.toggled.connect(self.updateUsine)
+        
+#        self.ui.quantite.textEdited[str].connect(self.updateUnite)
         
         self.ui.b_valid.clicked.connect(self.validateContract)
         self.ui.b_cancel.clicked.connect(self.close)
+        
         self.ui.b_fiche_acheteur.clicked.connect(self.openClientFile)
         self.ui.b_fiche_vendeur.clicked.connect(self.openFournissFile)
         
@@ -254,6 +272,7 @@ class ContractEditor(QtGui.QWidget, QtCore.QObject):
             self.new_contract = self.cDB.newContract()
         else:
             self.new_contract = ctr
+        
         
         self.ui.n_contrat.setText(self.new_contract.n_contrat)
         
@@ -267,9 +286,9 @@ class ContractEditor(QtGui.QWidget, QtCore.QObject):
                 self.ui.cb_marchandise.setCurrentIndex(self.new_contract.marchandise)
             
         # INITIALIZATION OF FOURNISSEUR NAME AND FOUNISSEUR ADR IF EXIST
-        if self.new_contract.usine_depart is not None: #usine vendeur
+        if self.new_contract.usine_vendeur is not None: #usine vendeur
             index = 0
-            while self.new_contract.usine_depart.proprietaire.nom not in self.ui.cb_nom_vendeur.itemText(index).encode('utf-8'):
+            while self.new_contract.usine_vendeur.proprietaire.nom not in self.ui.cb_nom_vendeur.itemText(index).encode('utf-8'):
                 index += 1
                 if index > self.ui.cb_nom_vendeur.count():
                     index = -1
@@ -278,7 +297,7 @@ class ContractEditor(QtGui.QWidget, QtCore.QObject):
             self.updateAdressList(emitter=self.ui.cb_nom_vendeur)
             
             index = 0
-            while self.new_contract.usine_depart.getAdr() != self.ui.cb_adr_depart.itemText(index):
+            while self.new_contract.getAdr_uFourniss() != self.ui.cb_adr_depart.itemText(index).encode('utf-8'):
                 index += 1
                 if index > self.ui.cb_adr_depart.count():
                     index = -1
@@ -287,9 +306,9 @@ class ContractEditor(QtGui.QWidget, QtCore.QObject):
             
             
         # INITIALIZATION OF CLIENT NAME AND CLIENT ADR IF EXIST
-        if self.new_contract.usine_destination is not None:
+        if self.new_contract.usine_acheteur is not None:
             index = 0
-            while self.new_contract.usine_destination.proprietaire.nom not in self.ui.cb_nom_acheteur.itemText(index):
+            while self.new_contract.usine_acheteur.proprietaire.nom not in self.ui.cb_nom_acheteur.itemText(index).encode('utf-8'):
                 index += 1
                 if index > self.ui.cb_nom_acheteur.count():
                     index = -1
@@ -298,7 +317,7 @@ class ContractEditor(QtGui.QWidget, QtCore.QObject):
             self.updateAdressList(emitter=self.ui.cb_nom_acheteur)
             
             index = 0
-            while self.new_contract.usine_destination.getAdr() != self.ui.cb_adr_livraison.itemText(index):
+            while self.new_contract.getAdr_uClient() != self.ui.cb_adr_livraison.itemText(index).encode('utf-8'):
                 index += 1
                 if index > self.ui.cb_adr_livraison.count():
                     index = -1
@@ -326,14 +345,17 @@ class ContractEditor(QtGui.QWidget, QtCore.QObject):
                     self.ui.cb_unite.setCurrentIndex(i)
                     break
                 
+        if self.new_contract.descr_livraison is not None:
+            self.t_dlv.setPlainText(self.new_contract.descr_livraison)
         if self.new_contract.prix is not None:
             self.ui.prix.setText(self.new_contract.prix)
         if self.new_contract.courtage is not None:
             self.ui.courtage.setText(self.new_contract.courtage)
         if self.new_contract.is_franco is True:
             self.ui.cb_franco.setChecked(True)
-        if self.new_contract.ville is not None and len(self.new_contract.ville)>0:
-            self.ui.l_ville.setText(self.new_contract.ville)
+        if self.new_contract.usine_cible is not None:
+            index = self.ui.cb_usine.findText(self.new_contract.getAdrCible())
+            self.ui.cb_usine.setCurrentIndex(index)
         if self.new_contract.logement is not None:
             self.ui.cb_logement.setCurrentIndex(self.ui.cb_logement.findText(self.new_contract.logement))
         if self.new_contract.periode_livraison is not None:
@@ -344,7 +366,7 @@ class ContractEditor(QtGui.QWidget, QtCore.QObject):
             self.ui.qte_total.setText(str(self.new_contract.qte_total))
         if self.new_contract.paiement is not None:
             self.ui.cb_paiement.setCurrentIndex(self.ui.cb_paiement.findText(self.new_contract.paiement))
-        
+        self.ui.t_notes.setText(self.new_contract.notes)
         
     def initMonnaie(self):
         print "initMonnaie"
@@ -356,7 +378,7 @@ class ContractEditor(QtGui.QWidget, QtCore.QObject):
         
         unites = getFromConfig('unite', 'unites')
         for u in unites:
-            self.ui.cb_unite.addItem(u['sym'].encode('utf8').title(), userData=u['sym'].lower())
+            self.ui.cb_unite.addItem(u['nom'].encode('utf8').title(), userData=u['sym'].lower())
         self.ui.cb_unite.setCurrentIndex(0)
         
     def initMarchandiseList(self):
@@ -466,14 +488,16 @@ class ContractEditor(QtGui.QWidget, QtCore.QObject):
             
     @QtCore.Slot(int)
     def currentMarchandiseChanged(self, index):
-        print "currentMarchandiseChanged ", index
         sender = self.sender()
+        print "currentMarchandiseChanged ", index, sender.itemText(index)
+        
+#        print "Marchandise : ", self.oil_market.get_code_from_name(sender.itemText(index)), self.oil_market.marchandiseExist(sender.itemText(index))
         self.new_contract.marchandise = self.oil_market.get_code_from_name(sender.itemText(index))
 
     @QtCore.Slot(str)
     def updateClientList(self, text, cb_widget = None):
         # recupere l'emetteur et nettoie le combobox en question
-        # puis met à jour la liste des noms similaires
+        # puis met a jour la liste des noms similaires
         cb_client = cb_widget or self.sender()
         print "updateClientList; signal from ", cb_client.objectName()
         
@@ -508,8 +532,7 @@ class ContractEditor(QtGui.QWidget, QtCore.QObject):
             
         cb_adr.blockSignals(True)
         # et met a jour la liste des adresses disponibles
-        while cb_adr.count() > 0:
-            cb_adr.removeItem(0)
+        cb_adr.clear()
             
     
         # si la marchandise est bien renseignée, on ne met que les usines correspondantes. Sinon on les met toutes.
@@ -519,9 +542,17 @@ class ContractEditor(QtGui.QWidget, QtCore.QObject):
 #                    cb_adr.addItem(getInlineArray(usine.adresse), userData = usine)
 ##                    cb_adr.setCurrentIndex(0)
 #        else:
-        for usine in self.oil_market.get_client(cb_client.currentText(), 'vendeur' in cb_client.objectName()).usines:
-            adr = usine.getAdr()
-            cb_adr.addItem(adr, userData = usine)
+        client = self.oil_market.get_client(cb_client.currentText(), 'vendeur' in cb_client.objectName())
+        if client is not None:
+#            if len(client.siege) > 1: # is not None and client.siege.getAdr() is not None and len(client.siege.getAdr()) > 0:
+#                cb_adr.addItem(client.siege, userData = client.usines[0])
+#            for usine in client.usines:
+#                adr = usine.getAdr()
+#                print adr
+#                cb_adr.addItem(adr, userData = usine)
+            fact_adr = client.getFactAdr()
+            for adr, v, u in fact_adr:
+                cb_adr.addItem(adr, userData = [[adr, v], u])
             
         
 #        cb_adr.setCurrentIndex(0)
@@ -535,35 +566,61 @@ class ContractEditor(QtGui.QWidget, QtCore.QObject):
         print "updateAdrCtr; signal from ", sender.objectName(), index
 #        
 #        if "depart" in sender.objectName():
-#            self.new_contract.usine_depart = self.ui.cb_adr_depart.itemData(index)
+#            self.new_contract.usine_vendeur = self.ui.cb_adr_depart.itemData(index)
 #        elif "livraison" in sender.objectName():
-#            self.new_contract.usine_destination = self.ui.cb_adr_livraison.itemData(index)
+#            self.new_contract.usine_acheteur = self.ui.cb_adr_livraison.itemData(index)
 
         
     @QtCore.Slot()
+    def updateUsine(self):
+        sender = self.sender()
+        print "updateUsine sended from ", sender.objectName() 
+        self.ui.cb_usine.clear()
+        if self.ui.cb_franco.isChecked() and self.ui.cb_nom_acheteur.currentIndex() >= 0:
+            acheteur = self.oil_market.get_client(self.ui.cb_nom_acheteur.currentText(), is_fournisseur=False)
+            if acheteur is not None:
+                usines = acheteur.getUsineAdr()
+                for adr, v, u in usines:
+                    self.ui.cb_usine.addItem(adr, userData = [[adr,v], u])
+        elif self.ui.cb_franco.isChecked() is False and self.ui.cb_nom_vendeur.currentIndex() >= 0:
+            vendeur = self.oil_market.get_client(self.ui.cb_nom_vendeur.currentText(), is_fournisseur=True)
+            if vendeur is not None:
+                usines = vendeur.getUsineAdr()
+                for adr, v, u in usines:
+                    self.ui.cb_usine.addItem(adr, userData = [[adr, v], u])
+                    
+                    
+    @QtCore.Slot()
     def validateContract(self):
+        
+        if self.checkFormular() is False:
+            return
         
         self.new_contract.n_contrat = self.ui.n_contrat.text()
         
-        i = self.ui.cb_adr_depart.currentIndex()
-        data = self.ui.cb_adr_depart.itemData( i )
-        self.new_contract.usine_depart = data
+        data = self.ui.cb_adr_depart.itemData( self.ui.cb_adr_depart.currentIndex() )
+        self.new_contract.usine_vendeur = data[1]
+        self.new_contract.adr_uFourniss = data[0]
         
-        i = self.ui.cb_adr_livraison.currentIndex()
-        data = self.ui.cb_adr_livraison.itemData( i )
-        self.new_contract.usine_destination = data
+        data = self.ui.cb_adr_livraison.itemData( self.ui.cb_adr_livraison.currentIndex() )
+        self.new_contract.usine_acheteur = data[1]
+        self.new_contract.adr_uClient = data[0]
             
         self.new_contract.date_contrat = str(self.ui.date_ctr.date().toString("dd/MM/yyyy"))
         self.new_contract.is_franco = self.ui.cb_franco.isChecked()
-        self.new_contract.ville = self.ui.l_ville.text()
+        data = self.ui.cb_usine.itemData( self.ui.cb_usine.currentIndex() )
+        self.new_contract.usine_cible = data[1]
+        self.new_contract.adr_uCible = data[0]
         
-        tmp = findall(r"[-+]?\d*\.*\d+", self.ui.qte_total.text())
+        tmp = findall(r"[-+]?\d*\.*\d+", self.ui.qte_total.text().replace(',','.'))
         if len(tmp) > 0:
             self.new_contract.qte_total = float(tmp[0])
         else:
             self.new_contract.qte_total = 0.0
             
         self.new_contract.periode_livraison = self.w_dlv_date.getSelection()[1]
+        self.new_contract.descr_livraison = self.t_dlv.toPlainText()
+        
         self.new_contract.prix = self.ui.prix.text().encode('utf8')
         self.new_contract.courtage = self.ui.courtage.text().encode('utf8')
         self.new_contract.paiement = self.ui.cb_paiement.currentText()
@@ -573,17 +630,13 @@ class ContractEditor(QtGui.QWidget, QtCore.QObject):
         self.new_contract.monnaie = self.ui.cb_monnaie.itemData(self.ui.cb_monnaie.currentIndex())
         self.new_contract.unite = self.ui.cb_unite.itemData(self.ui.cb_unite.currentIndex())
         
+        self.new_contract.notes = self.ui.t_notes.toPlainText()
 #        self.new_contract.marchandise = self.ui.cb_marchandise.findText(self.ui.cb_marchandise.currentText())
-        print self.new_contract.marchandise
-        if self.checkFormular() is False:
-            return
         
-        self.cDB.updateContract(self.new_contract)
+        if self.cDB.confirmContract(self.new_contract) < 0:
+            return 
+        
         self.new_contract  = None
-        print "Validated; ctr is now ", self.new_contract
-#        self.s_contract_validated.emit()
-        
-#        if self.creator_mode is False:
         self.close()
             
     def checkFormular(self):
@@ -601,7 +654,12 @@ class ContractEditor(QtGui.QWidget, QtCore.QObject):
             self.ui.cb_nom_vendeur.setStyleSheet("#cb_nom_vendeur { border: 3px solid red; }")
         else:
             self.ui.cb_nom_vendeur.setStyleSheet("")
-        
+            
+        if self.ui.cb_usine.currentIndex() < 0:
+            to_complete += 1
+            self.ui.cb_usine.setStyleSheet("#cb_usine { border: 3px solid red; }")
+        else:
+            self.ui.cb_usine.setStyleSheet("")
         
         if self.ui.cb_adr_depart.currentIndex() < 0:
             to_complete += 1
@@ -621,7 +679,7 @@ class ContractEditor(QtGui.QWidget, QtCore.QObject):
         else:
             self.ui.cb_marchandise.setStyleSheet("")
         
-        if self.new_contract.qte_total <= 0:
+        if len(self.ui.qte_total.text()) <= 0:
             to_complete += 1
             self.ui.qte_total.setStyleSheet("#qte_total { border: 3px solid red; }")
         else: 
@@ -752,11 +810,10 @@ class ContractEditor(QtGui.QWidget, QtCore.QObject):
     def closeWindow(self):
         parent = self.parent()
         parent.close()
-#        self.close
         
         
     def closeEvent(self, event):
-        if self.creator_mode is False:
+        if self.creator_mode is False and self.new_contract is not None:
             message = "Annuler les modifications ?"
             reply = QtGui.QMessageBox.question(self, 'Attention', message, QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
             if reply == QtGui.QMessageBox.Yes:
@@ -770,10 +827,6 @@ class ContractEditor(QtGui.QWidget, QtCore.QObject):
                 self.s_close_widget.emit()
             event.accept()
                 
-          
-#    def showEvent(self, event):
-#        if self.new_contract is None:
-#            self.initEditor()
 
     def keyPressEvent(self, e):
         if e.key() == QtCore.Qt.Key_Return or e.key() == QtCore.Qt.Key_Enter:

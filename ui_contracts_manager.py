@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'interface_GC\ui_contracts_manager.ui'
 #
-# Created: Thu May 18 22:16:46 2017
+# Created: Mon Aug 07 21:18:07 2017
 #      by: pyside-uic 0.2.15 running on PySide 1.2.4
 #
 # WARNING! All changes made in this file will be lost!
@@ -63,10 +63,21 @@ class Ui_modif_contract(object):
         self.cb_sort_year.setSizeAdjustPolicy(QtGui.QComboBox.AdjustToContents)
         self.cb_sort_year.setObjectName("cb_sort_year")
         self.verticalLayout_10.addWidget(self.cb_sort_year)
+        self.label_11 = QtGui.QLabel(self.groupBox_2)
+        self.label_11.setMaximumSize(QtCore.QSize(16777215, 22))
+        self.label_11.setText("")
+        self.label_11.setObjectName("label_11")
+        self.verticalLayout_10.addWidget(self.label_11)
         self.verticalLayout_9.addLayout(self.verticalLayout_10)
         self.verticalLayout_11 = QtGui.QVBoxLayout()
         self.verticalLayout_11.setObjectName("verticalLayout_11")
+        self.label_12 = QtGui.QLabel(self.groupBox_2)
+        self.label_12.setMaximumSize(QtCore.QSize(16777215, 20))
+        self.label_12.setText("")
+        self.label_12.setObjectName("label_12")
+        self.verticalLayout_11.addWidget(self.label_12)
         self.label_8 = QtGui.QLabel(self.groupBox_2)
+        self.label_8.setMaximumSize(QtCore.QSize(16777215, 20))
         self.label_8.setText("")
         self.label_8.setObjectName("label_8")
         self.verticalLayout_11.addWidget(self.label_8)
@@ -187,6 +198,16 @@ class Ui_modif_contract(object):
         self.t_ctr_list.header().setSortIndicatorShown(True)
         self.horizontalLayout.addWidget(self.t_ctr_list)
         self.verticalLayout.addLayout(self.horizontalLayout)
+        self.horizontalLayout_8 = QtGui.QHBoxLayout()
+        self.horizontalLayout_8.setObjectName("horizontalLayout_8")
+        self.t_ctr_total = QtGui.QTreeWidget(self.ctr_centralwidget)
+        self.t_ctr_total.setEnabled(False)
+        self.t_ctr_total.setObjectName("t_ctr_total")
+        self.t_ctr_total.headerItem().setText(0, "1")
+        self.t_ctr_total.header().setVisible(True)
+        self.t_ctr_total.header().setStretchLastSection(False)
+        self.horizontalLayout_8.addWidget(self.t_ctr_total)
+        self.verticalLayout.addLayout(self.horizontalLayout_8)
         modif_contract.setCentralWidget(self.ctr_centralwidget)
 
         self.retranslateUi(modif_contract)

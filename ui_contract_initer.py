@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'interface_GC\ui_contract_initer.ui'
 #
-# Created: Wed May 17 23:26:08 2017
+# Created: Tue May 30 00:45:42 2017
 #      by: pyside-uic 0.2.15 running on PySide 1.2.4
 #
 # WARNING! All changes made in this file will be lost!
@@ -12,26 +12,16 @@ from PySide import QtCore, QtGui
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(880, 970)
+        MainWindow.resize(980, 970)
         self.centralwidget = QtGui.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         self.verticalLayout_2 = QtGui.QVBoxLayout(self.centralwidget)
         self.verticalLayout_2.setObjectName("verticalLayout_2")
         self.verticalLayout = QtGui.QVBoxLayout()
         self.verticalLayout.setObjectName("verticalLayout")
-        self.scrollArea = QtGui.QScrollArea(self.centralwidget)
-        self.scrollArea.setFrameShape(QtGui.QFrame.NoFrame)
-        self.scrollArea.setLineWidth(0)
-        self.scrollArea.setWidgetResizable(True)
-        self.scrollArea.setObjectName("scrollArea")
-        self.scrollAreaWidgetContents_4 = QtGui.QWidget()
-        self.scrollAreaWidgetContents_4.setGeometry(QtCore.QRect(0, 0, 856, 946))
-        self.scrollAreaWidgetContents_4.setObjectName("scrollAreaWidgetContents_4")
-        self.horizontalLayout = QtGui.QHBoxLayout(self.scrollAreaWidgetContents_4)
-        self.horizontalLayout.setObjectName("horizontalLayout")
         self.verticalLayout_3 = QtGui.QVBoxLayout()
         self.verticalLayout_3.setObjectName("verticalLayout_3")
-        self.tab_main = QtGui.QTabWidget(self.scrollAreaWidgetContents_4)
+        self.tab_main = QtGui.QTabWidget(self.centralwidget)
         font = QtGui.QFont()
         font.setFamily("Calibri")
         font.setPointSize(9)
@@ -141,7 +131,7 @@ class Ui_MainWindow(object):
         self.scroll_result.setWidgetResizable(True)
         self.scroll_result.setObjectName("scroll_result")
         self.scrollAreaWidgetContents = QtGui.QWidget()
-        self.scrollAreaWidgetContents.setGeometry(QtCore.QRect(0, 0, 776, 575))
+        self.scrollAreaWidgetContents.setGeometry(QtCore.QRect(0, 0, 898, 597))
         self.scrollAreaWidgetContents.setObjectName("scrollAreaWidgetContents")
         self.verticalLayout_12 = QtGui.QVBoxLayout(self.scrollAreaWidgetContents)
         self.verticalLayout_12.setObjectName("verticalLayout_12")
@@ -185,9 +175,7 @@ class Ui_MainWindow(object):
         self.horizontalLayout_3.addLayout(self.verticalLayout_4)
         self.tab_main.addTab(self.tab_simulation, "")
         self.verticalLayout_3.addWidget(self.tab_main)
-        self.horizontalLayout.addLayout(self.verticalLayout_3)
-        self.scrollArea.setWidget(self.scrollAreaWidgetContents_4)
-        self.verticalLayout.addWidget(self.scrollArea)
+        self.verticalLayout.addLayout(self.verticalLayout_3)
         self.verticalLayout_2.addLayout(self.verticalLayout)
         MainWindow.setCentralWidget(self.centralwidget)
 

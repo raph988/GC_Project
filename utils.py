@@ -15,8 +15,11 @@ from xml.dom import minidom
 import configparser, ast
 import os.path
 import datetime, dateutil
+from collections import Mapping
+from copy import deepcopy
 from geopy.geocoders import Nominatim
 from random import random
+from re import findall
 
 
 import matplotlib as mpl
@@ -25,8 +28,9 @@ from PySide.QtGui import QImage, QPixmap
 
 
 ###########
-from os import listdir
+from os import listdir, remove
 from os.path import isfile, join
+import time
 #########
 
 import hashlib
@@ -42,50 +46,217 @@ ini_path = "./data/config.ini"
 #accent = ['é', 'è', 'ê', 'à', 'ù', 'û', 'ç', 'ô', 'î', 'ï', 'â', 'œ'	, '&', '€', '®']
 #html_sym = ['&eacute;', '&egrave', '&ecirc;', '&agrave;', '&ugrave;', '&ccedil;', '&ocirc;', '&icirc;', '&iuml;', '&acirc;', '&amp;', '&euro;','&reg;',  
 
-             
-def mathTex_to_QPixmap(mathTex, fs):
-
-    #---- set up a mpl figure instance ----
-
-    fig = mpl.figure.Figure()
-    fig.patch.set_facecolor('none')
-    fig.set_canvas(FigureCanvasAgg(fig))
-    renderer = fig.canvas.get_renderer()
-
-    #---- plot the mathTex expression ----
-
-    ax = fig.add_axes([0, 0, 1, 1])
-    ax.axis('off')
-    ax.patch.set_facecolor('none')
-    t = ax.text(0, 0, mathTex, ha='left', va='bottom', fontsize=fs)
-
-    #---- fit figure size to text artist ----
-
-    fwidth, fheight = fig.get_size_inches()
-    fig_bbox = fig.get_window_extent(renderer)
-
-    text_bbox = t.get_window_extent(renderer)
-
-    tight_fwidth = text_bbox.width * fwidth / fig_bbox.width
-    tight_fheight = text_bbox.height * fheight / fig_bbox.height
-
-    fig.set_size_inches(tight_fwidth, tight_fheight)
-
-    #---- convert mpl figure to QPixmap ----
-
-    buf, size = fig.canvas.print_to_buffer()
-    qimage = QImage.rgbSwapped(QImage(buf, size[0], size[1], QImage.Format_ARGB32))
-    qpixmap = QPixmap(qimage)
-
-    return qpixmap
+class TexPixmap:
+    def __init__(self):
+        #---- set up a mpl figure instance ----
+        self.fig = mpl.figure.Figure()
+        self.fig.set_canvas(FigureCanvasAgg(self.fig))
+        self.renderer = self.fig.canvas.get_renderer()
+        
+        #---- plot the mathTex expression ----
+        self.ax = self.fig.add_axes([0, 0, 1, 1])
+        self.ax.axis('off')
+        self.ax.patch.set_facecolor('none')
+    
+    def mathTex_to_QPixmap(self, mathTex, fs):
+    
+    
+        self.fig.patch.set_facecolor('none')
+        t = self.ax.text(0, 0, mathTex, ha='left', va='bottom', fontsize=fs)
+    
+        #---- fit figure size to text artist ----
+    
+        fwidth, fheight = self.fig.get_size_inches()
+        fig_bbox = self.fig.get_window_extent(self.renderer)
+    
+        text_bbox = t.get_window_extent(self.renderer)
+    
+        tight_fwidth = text_bbox.width * fwidth / fig_bbox.width
+        tight_fheight = text_bbox.height * fheight / fig_bbox.height
+    
+        self.fig.set_size_inches(tight_fwidth, tight_fheight)
+    
+        #---- convert mpl figure to QPixmap ----
+    
+        buf, size = self.fig.canvas.print_to_buffer()
+        qimage = QImage.rgbSwapped(QImage(buf, size[0], size[1], QImage.Format_ARGB32))
+        qpixmap = QPixmap(qimage)
+        self.ax.cla()
+        
+        return qpixmap
              
 #def getInfosFromAdress(address):
 #    if isinstance(address, list):
 #        address = getInlineArray(address)
 #    geolocator = Nominatim()
 #    infos_str = geolocator.geocode(address).address
+
+
+
+class DataManager:
+    """
+    ###########################
+    ### DATABASE MANAGEMENT ###
+    ###########################
+    """
+    def __init__(self):
+        self.backup_dir = getFromConfig("path", "backup_dir")
+        self.data_dir = getFromConfig("path", "data_dir")
+        self.data_status_dir = getFromConfig("path", "data_status")
+        
+    def createFile(self, filename, txt):
+        with open(join(self.data_dir, filename), 'wb') as f:
+            f.write(txt)
+        
+    def removeFile(self, filename):
+        try:
+            remove(join(self.data_dir, filename))
+        except:
+            pass
+        
+    def safe_saving(self, obj, file_name):
+        #make backup before saving
+        try:
+            self.make_backup()
+        except: pass
+        
+        file_name = self.data_dir+file_name+'.data'
+        
+        s = pickle.dumps(obj, pickle.HIGHEST_PROTOCOL)
+        s += hashlib.sha1(s).digest()
+        
+        with open(file_name, 'wb') as f:
+            f.write(s)
+        
+        return True
     
-             
+
+    def safe_loading(self, file_name, n_try = 0):
+        full_path = self.data_dir+file_name+'.data'
+        
+        with open(full_path, 'rb') as f:
+            pstr = f.read()
+        
+        data, checksum = pstr[:-_HASHLEN], pstr[-_HASHLEN:]
+        try:
+            if hashlib.sha1(data).digest() != checksum and n_try < 1:
+                return self.safe_loading(file_name, n_try = n_try+1)
+            elif hashlib.sha1(data).digest() == checksum:
+                return pickle.loads(data)
+            else:
+                return self.load_backup()
+        except:
+            return self.load_backup()
+        
+        return None
+
+
+    def load_backup(self):
+        onlyfiles = [f for f in listdir(self.backup_dir) if isfile(join(self.backup_dir, f)) and f.startswith("Backup")]
+        datetimes = list(datetime.datetime.strptime(s.replace("Backup", "").replace('.data', ""), '_%d_%m_%y %H') for s in onlyfiles)
+        ordered = sorted(datetimes, reverse=True)
+            
+        index = 0
+        while index < len(ordered):
+            file_name = self.backup_dir+list(f for f in onlyfiles if ordered[index].strftime("_%d_%m_%y %H") in f)[0]
+            try:
+                with open(file_name, 'rb') as f:
+                    pstr = f.read()
+                data, checksum = pstr[:-_HASHLEN], pstr[-_HASHLEN:]
+                if hashlib.sha1(data).digest() != checksum:
+                    raise ValueError
+                return pickle.loads(data)
+            except:
+                index += 1
+        return None
+
+
+    def make_backup(self):
+        current_data = self.safe_loading("contrats")
+        file_name = self.backup_dir+"Backup"+"_"+datetime.datetime.now().strftime("%d_%m_%y %H")+'.data'
+        s = pickle.dumps(current_data, pickle.HIGHEST_PROTOCOL)
+        s += hashlib.sha1(s).digest()
+        
+        with open(file_name, 'wb') as f:
+            f.write(s)
+            
+        
+    def getStatus(self):
+        with open(self.data_status_dir, 'r') as f:
+            lines = f.readlines()
+            
+        try:
+            time = datetime.datetime.strptime(lines[0].rstrip(), '%d_%m_%y %H_%M_%S.%f')
+        except:
+            time = datetime.datetime.strptime(lines[0].rstrip(), '%d_%m_%y %H_%M')
+        status = lines[1].rstrip()
+        return time, status
+    
+    def dbLocked(self):
+        time, status = self.getStatus()
+        if status == "locked":
+            return True
+        return False
+    
+    def hasToBeUpdated(self, local_time):
+        if local_time is None:
+            return True
+        
+        try:
+            local_time = datetime.datetime.strptime(local_time.rstrip(), '%d_%m_%y %H_%M_%S.%f')
+        except:
+            local_time = datetime.datetime.strptime(local_time.rstrip(), '%d_%m_%y %H_%M')
+            
+        time, status = self.getStatus()
+        print "last db update : ", time, ", last db import : ", local_time
+        if local_time < time:
+            return True
+        return False
+#        except:
+#            return False
+        
+        
+    def unlockDB(self):
+        try:
+            with open(self.data_status_dir, 'r') as f:
+                data = [line.strip() for line in f]
+        
+            current_time = datetime.datetime.now().strftime("%d_%m_%y %H_%M_%S.%f")
+            
+            data[0] = current_time+'\n'
+            data[1] = 'opened'
+        except:
+            time.sleep(0.1)
+            return self.unlockDB()
+        
+        with open(self.data_status_dir, 'w') as f:
+            f.writelines( data )
+            
+    def lockDB(self):
+        try:
+            with open(self.data_status_dir, 'r') as f:
+                data = [line.strip() for line in f]
+        
+            data[0] = data[0]+'\n'
+            data[1] = 'locked'
+        except:
+            time.sleep(0.1)
+            return self.lockDB()
+        
+        with open(self.data_status_dir, 'w') as f:
+            f.writelines( data )
+        
+        
+    def clearDB(self):
+        data = self.safe_loading('contrats')
+        for n in data.keys():
+            if data[n] is None:
+                del data[n]
+        self.safe_saving(data,'contrats')
+        
+            
+            
+      
 def save_obj(obj, name, backup=False):
     if backup is True:
         path = getFromConfig("path", "backup_dir")
@@ -138,77 +309,6 @@ def compareDB(obj1, obj2):
     return False
     
 
-def safe_saving(obj, file_name):
-    #make backup before saving
-    make_backup()
-    
-    path = getFromConfig("path", "data_dir")
-    file_name = path+file_name+'.data'
-    
-    s = pickle.dumps(obj, pickle.HIGHEST_PROTOCOL)
-    s += hashlib.sha1(s).digest()
-    
-    with open(file_name, 'wb') as f:
-        f.write(s)
-    
-    return True
-    
-
-def safe_loading(file_name, n_try = 0):
-    path = getFromConfig("path", "data_dir")
-    full_path = path+file_name+'.data'
-    
-    with open(full_path, 'rb') as f:
-        pstr = f.read()
-    data, checksum = pstr[:-_HASHLEN], pstr[-_HASHLEN:]
-    
-    try:
-        if hashlib.sha1(data).digest() != checksum and n_try < 1:
-            return safe_loading(file_name, n_try = n_try+1)
-        elif hashlib.sha1(data).digest() == checksum:
-            return pickle.loads(data)
-        else:
-            return load_backup()
-    except:
-        return load_backup()
-    
-    return None
-
-
-def load_backup():
-    path = getFromConfig("path", "backup_dir")
-    onlyfiles = [f for f in listdir(path) if isfile(join(path, f)) and f.startswith("Backup")]
-    datetimes = list(datetime.datetime.strptime(s.replace("Backup", "").replace('.data', ""), '_%d_%m_%y %H') for s in onlyfiles)
-    ordered = sorted(datetimes, reverse=True)
-        
-    index = 0
-    while index < len(ordered):
-        file_name = path+list(f for f in onlyfiles if ordered[index].strftime("_%d_%m_%y %H") in f)[0]
-        try:
-            with open(file_name, 'rb') as f:
-                pstr = f.read()
-            data, checksum = pstr[:-_HASHLEN], pstr[-_HASHLEN:]
-            if hashlib.sha1(data).digest() != checksum:
-                raise ValueError
-            return pickle.loads(data)
-        except:
-            index += 1
-    return None
-
-
-def make_backup():
-    current_data = safe_loading("contrats")
-    
-    path = getFromConfig("path", "backup_dir")
-    file_name = path+"Backup"+"_"+datetime.datetime.now().strftime("%d_%m_%y %H")+'.data'
-    
-    s = pickle.dumps(current_data, pickle.HIGHEST_PROTOCOL)
-    s += hashlib.sha1(s).digest()
-    
-    with open(file_name, 'wb') as f:
-        f.write(s)
-
-
 
 def chaos_pickle(obj, file, io_error_chance=0, eof_error_chance=0):
     if random < io_error_chance:
@@ -220,21 +320,36 @@ def chaos_pickle(obj, file, io_error_chance=0, eof_error_chance=0):
     return pickle.Pickler(obj, file, pickle.HIGHEST_PROTOCOL)
         
     
-def clearDB():
-    data = safe_loading('contrats')
-    for n in data.keys():
-        if data[n] is None:
-            del data[n]
-    safe_saving(data,'contrats')
+            
+def getLastUpdateTime():
+    path = getFromConfig("path", "update_time")
+    settings = configparser.ConfigParser()
+    settings._interpolation = configparser.ExtendedInterpolation()
+    settings.read(path)
+    stime = settings.get("last_update", "time")
+    return dateutil.parser.parse(stime)
+
+
+
+###############################
+### END DATABASE MANAGEMENT ###
+###############################
+
     
 def _format(cell_value, set_lower = True, clear = False):
+    
+    
     if type(cell_value).__name__ == 'str':
+        maj_accent = ["À", "Æ", "æ", "Â", "Ä", "Ô", "Û", "Ü", "Ù", "Ö", "Ê", "Ë", "É", "È", "Œ", "œ", "Ï", "Î", "Ç"]
+        maj_sans_accent = ["A", "AE", "ae", "A", "A", "O", "U", "U", "U", "O", "E", "E", "E", "E", "OE", "oe", "I", "I", "C"]
         accent = ['é', 'è', 'ê', 'à', 'ù', 'û', 'ç', 'ô', 'î', 'ï', 'â']
         sans_accent = ['e', 'e', 'e', 'a', 'u', 'u', 'c', 'o', 'i', 'i', 'a']
         if clear is True:
             for c, s in zip(accent, sans_accent):
                 cell_value = cell_value.replace(c, s)
-        cell_value = cell_value.encode('utf-8').strip()
+            for c, s in zip(maj_accent, maj_sans_accent):
+                cell_value = cell_value.replace(c, s)
+#        cell_value = cell_value.encode('utf-8').strip()
     elif type(cell_value).__name__ == 'unicode':
         if clear is True:
             cell_value = unicodedata.normalize('NFD', cell_value).encode('ascii', 'ignore')
@@ -246,7 +361,13 @@ def _format(cell_value, set_lower = True, clear = False):
         return cell_value
     
     if set_lower:
-        return cell_value.lower()
+        cell_value = cell_value.lower()
+        
+    try:
+        cell_value = cell_value.replace('’', "'")
+    except:
+        pass
+    
     return cell_value
     
 
@@ -407,11 +528,23 @@ def has_item(array, item):
         pass
     return -1
 
-def mergeDicts(x, y):
+def _mergeDicts(x, y):
     """Given two dicts, merge them into a new dict as a shallow copy."""
+    """ PB : not recursive"""
     z = x.copy()
     z.update(y)
     return z
+
+
+def mergeDicts(d, other):
+    """ update nested dict """
+    for k, v in other.items():
+        d_v = d.get(k)
+        if isinstance(v, Mapping) and isinstance(d_v, Mapping):
+            mergeDicts(d_v, v)
+        else:
+            d[k] = deepcopy(v)
+            
 
 def getInlineArray(array):
     text = ""
@@ -473,6 +606,7 @@ def loadCitiesDic(name = "Cities_dict"):
 
 iniConfig = {}
 def loadIni():
+    print "LOADINI"
     settings = configparser.ConfigParser()
     settings._interpolation = configparser.ExtendedInterpolation()
     settings.read(ini_path, encoding='utf_8_sig')
@@ -485,7 +619,7 @@ def loadIni():
 
     
 def getFromConfig(sectionName, itemName = None):
-    if len(list(iniConfig.items())) < 1:
+    if len(iniConfig.keys()) < 1:
         loadIni()
         
     try:
@@ -495,72 +629,7 @@ def getFromConfig(sectionName, itemName = None):
     except Exception as e:
         print e
         print "Item not found in ini file."
-        
-def getLastUpdateTime():
-    path = getFromConfig("path", "update_time")
-    settings = configparser.ConfigParser()
-    settings._interpolation = configparser.ExtendedInterpolation()
-    settings.read(path)
-    stime = settings.get("last_update", "time")
-    return dateutil.parser.parse(stime)
 
-def getStatus():
-    print "getStatus"
-    path = getFromConfig("path", "data_status")
-    f = open(path, 'r')
-    lines = f.readlines()
-    print "lines ", lines
-    time = datetime.datetime.strptime(lines[0].rstrip(), '%d_%m_%y %H_%M')
-    print "time ", time
-    status = lines[1].rstrip()
-    print "status ", status
-    
-    return time, status
-
-def dbLocked():
-    time, status = getStatus()
-    if status == "locked":
-        return True
-    return False
-
-def hasToBeUpdated(time_to_cmp):
-    time, status = getStatus()
-#    current_time = datetime.datetime.now()
-#    if current_time.isoformat() 
-    print "last db update : ", time, ", last db import : ", time_to_cmp
-    if time_to_cmp < time:
-        return True
-    return False
-    
-    
-def unlockDB():
-    path = getFromConfig("path", "data_status")
-    
-    with open(path, 'r') as f:
-        data = [line.strip() for line in f]
-    
-    current_time = datetime.datetime.now().strftime("%d_%m_%y %H_%M")
-    
-    data[0] = current_time+'\n'
-    data[1] = 'opened'
-    
-    with open(path, 'w') as f:
-        f.writelines( data )
-        
-    
-    
-def lockDB():
-    path = getFromConfig("path", "data_status")
-    
-    with open(path, 'r') as f:
-        data = [line.strip() for line in f]
-    
-    data[0] = data[0]+'\n'
-    data[1] = 'locked'
-    
-    with open(path, 'w') as f:
-        f.writelines( data )
-    
 
 def number_of_days(month, year):
     date = datetime.date(int(year), int(month), 1)
@@ -570,7 +639,12 @@ def number_of_days(month, year):
 
 def format_num(num):
     if isinstance(num, str) or isinstance(num, unicode):
-        num = float(num)
+        num = num.replace(',', '.')
+        num = findall(r"[-+]?\d*\.*\d+", num)
+        if len(num) > 0:
+            num = float(num[0])
+        else:
+            num = 0.0
     return ('%f' % num).rstrip('0').rstrip('.')
 
     
@@ -589,8 +663,8 @@ if __name__ == '__main__':
 #    print safe_saving(data, 'contrats')
 #    clearDB()
 #    load_obj("Backup_", backup=True)
-    
-#    print getStatus()
+    dm = DataManager()
+    print dm.getStatus()
 #    print getFromConfig("langages")
 #    load_obj("Backup", backup=True)
 #    print safe_saving({}, "contrats")
@@ -606,6 +680,6 @@ if __name__ == '__main__':
 #    print getStatus()
 #    
 #    print getFromConfig("monnaie", 'monnaies')
-    chaos_pickle({0:6, 1:5, 2:4, 3:3, 4:2, 5:1, 6:0}, "./usafe_file.data", eof_error_chance=1)
+#    chaos_pickle({0:6, 1:5, 2:4, 3:3, 4:2, 5:1, 6:0}, "./usafe_file.data", eof_error_chance=1)
     print "Done"
     
